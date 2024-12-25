@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"log"
 )
 
 type MetricType string
@@ -48,8 +50,11 @@ func splitPath(path string) []string {
 func (ms *MetricStore) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		pathParts := splitPath(r.URL.Path)
+		fmt.Printf("pathParts: %+v\n", pathParts)
+		log.Printf("pathParts: %+v\n", pathParts)
+		log.Default().Printf("pathParts: %+v\n", pathParts)
 		if len(pathParts) != 4 || pathParts[0] != "update" {
-			http.Error(w, "Invalid URL path", http.StatusBadRequest)
+			http.Error(w, "Invalid URL path", http.StatusNotFound)
 			return
 		}
 
@@ -89,6 +94,8 @@ func (ms *MetricStore) mainPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		res := fmt.Sprintf("metrics: %+v", ms)
 		w.Write([]byte(res))
+	} else {
+		http.Error(w, "Not Found", http.StatusNotFound)
 	}
 }
 
@@ -97,7 +104,6 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", store.mainPage)
 	mux.HandleFunc("/update/", store.HandleUpdate)
-
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		panic(err)
 	}
