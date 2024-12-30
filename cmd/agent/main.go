@@ -106,5 +106,5 @@ func (a *Agent) Run() {
 
 func main() {
 	agent := NewAgent("http://localhost:8080", 2*time.Second, 10*time.Second)
-	go agent.Run()
+	agent.Run()
 }
