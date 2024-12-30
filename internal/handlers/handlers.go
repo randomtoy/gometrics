@@ -42,7 +42,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	case storage.Counter:
 		value, err = strconv.ParseInt(valueStr, 10, 64)
 	default:
-		http.Error(w, "invalid metric type", http.StatusNotFound)
+		http.Error(w, "invalid metric type", http.StatusBadRequest)
 		return
 	}
 
@@ -63,7 +63,7 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "invalid method", http.StatusMethodNotAllowed)
+		http.Error(w, "invalid method", http.StatusNotFound)
 		return
 	}
 	metrics := h.store.GetAllMetrics()

@@ -1,4 +1,3 @@
-// storage/storage_test.go
 package storage
 
 import (

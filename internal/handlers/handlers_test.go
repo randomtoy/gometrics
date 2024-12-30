@@ -39,7 +39,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/update/unknown/UnknownMetric/10", nil)
 		rec := httptest.NewRecorder()
 		handler.HandleUpdate(rec, req)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
 
 	})
 
@@ -49,6 +49,14 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		handler.HandleUpdate(rec, req)
 
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("Metric without name", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/update/counter/", nil)
+		rec := httptest.NewRecorder()
+
+		handler.HandleMetrics(rec, req)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
 }
 
