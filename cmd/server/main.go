@@ -28,7 +28,7 @@ func main() {
 	handler := handlers.NewHandler(store)
 	srv := NewServer(handler)
 
-	err := srv.Run("http://localhost:8080")
+	err := srv.Run("localhost:8080")
 	if err != nil {
 		panic(err)
 	}
