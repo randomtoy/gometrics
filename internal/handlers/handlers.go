@@ -79,7 +79,7 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 
 func trimPath(path string) pathParts {
 	var paths pathParts
-	parts := strings.Split(path, "/")
+	parts := strings.Split(strings.ToLower(path), "/")
 
 	paths.action = getElement(parts, 1)
 	paths.metricType = getElement(parts, 2)

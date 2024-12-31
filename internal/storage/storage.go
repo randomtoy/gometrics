@@ -2,8 +2,7 @@ package storage
 
 import (
 	"fmt"
-
-	"github.com/labstack/gommon/log"
+	"strings"
 )
 
 type MetricType string
@@ -35,6 +34,10 @@ func NewInMemoryStorage() *InMemoryStorage {
 }
 
 func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error {
+
+	// it's hack for lowering direct write to store
+	metricName = strings.ToLower(metricName)
+
 	switch metricType {
 	case Gauge:
 		val, ok := metricValue.(float64)
@@ -59,10 +62,9 @@ func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string,
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
+	metric = strings.ToLower(metric)
 	m, ok := s.metrics[metric]
-	log.Info(ok)
 	if !ok {
-		log.Info("nok")
 		return Metric{}, fmt.Errorf("can't find metric: %s", metric)
 	}
 	return m, nil
