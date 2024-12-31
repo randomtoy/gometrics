@@ -20,7 +20,7 @@ func NewServer(handler *handlers.Handler) *Server {
 func (s *Server) Run(addr string) error {
 	e := echo.New()
 	e.GET("/", s.handler.HandleAllMetrics)
-	// e.GET("/value/",)
+	e.GET("/value/*", s.handler.HandleMetrics)
 	e.POST("/update/*", s.handler.HandleUpdate)
 	e.Any("/*", func(c echo.Context) error {
 		return c.String(http.StatusNotFound, "Page not found")

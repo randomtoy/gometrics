@@ -125,9 +125,9 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	}
 	switch storage.MetricType(path.metricType) {
 	case storage.Gauge:
-		return c.String(http.StatusOK, fmt.Sprintf("%f", metric.Value.(float64)))
+		return c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
 	case storage.Counter:
-		return c.String(http.StatusOK, fmt.Sprintf("%d", metric.Value.(int64)))
+		return c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Unknown metric type: %s", path.metricType))
 	}
