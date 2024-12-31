@@ -51,7 +51,7 @@ func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string,
 		if found {
 			val += existing.Value.(int64)
 		}
-		s.metrics[metricName] = Metric{Type: Gauge, Value: val}
+		s.metrics[metricName] = Metric{Type: Counter, Value: val}
 	default:
 		return fmt.Errorf("invalid metric type")
 	}
