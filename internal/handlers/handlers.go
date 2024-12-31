@@ -129,6 +129,6 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	case storage.Counter:
 		return c.String(http.StatusOK, fmt.Sprintf("%d", metric.Value.(int64)))
 	default:
-		return c.String(http.StatusNotFound, fmt.Sprintf("Unknown metric type: %s", path.metricType))
+		return c.String(http.StatusBadRequest, fmt.Sprintf("Unknown metric type: %s", path.metricType))
 	}
 }

@@ -2,6 +2,8 @@ package storage
 
 import (
 	"fmt"
+
+	"github.com/labstack/gommon/log"
 )
 
 type MetricType string
@@ -58,7 +60,9 @@ func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string,
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
 	m, ok := s.metrics[metric]
+	log.Info(ok)
 	if !ok {
+		log.Info("nok")
 		return Metric{}, fmt.Errorf("can't find metric: %s", metric)
 	}
 	return m, nil

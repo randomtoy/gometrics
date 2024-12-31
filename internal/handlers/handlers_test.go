@@ -125,12 +125,31 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "123")
 	})
 
-	t.Run("Invalid metric type", func(t *testing.T) {
+	t.Run("Invalid metric name", func(t *testing.T) {
+
 		req := httptest.NewRequest(http.MethodGet, "/value/unknown/UnknownMetric", nil)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
-		err := handler.HandleMetrics(ctx)
-		assert.Error(t, err)
+		handler.HandleMetrics(ctx)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
 
 	})
+	t.Run("Invalid metric type", func(t *testing.T) {
+
+		req := httptest.NewRequest(http.MethodGet, "/value/unknown/TestCounter", nil)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
+		handler.HandleMetrics(ctx)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	})
+	t.Run("Empty metric Name", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/value/gauge//", nil)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
+		handler.HandleMetrics(ctx)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	})
+
 }
