@@ -19,6 +19,7 @@ type Metric struct {
 type Storage interface {
 	UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error
 	GetAllMetrics() map[string]Metric
+	GetMetric(metric string) (Metric, error)
 }
 
 type InMemoryStorage struct {
@@ -53,6 +54,14 @@ func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string,
 		return fmt.Errorf("invalid metric type")
 	}
 	return nil
+}
+
+func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
+	m, ok := s.metrics[metric]
+	if !ok {
+		return Metric{}, fmt.Errorf("can't find metric: %s", metric)
+	}
+	return m, nil
 }
 
 func (s *InMemoryStorage) GetAllMetrics() map[string]Metric {

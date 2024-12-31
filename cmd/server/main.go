@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/labstack/echo/v4"
 	"github.com/randomtoy/gometrics/internal/handlers"
 	"github.com/randomtoy/gometrics/internal/storage"
 )
@@ -16,11 +18,18 @@ func NewServer(handler *handlers.Handler) *Server {
 }
 
 func (s *Server) Run(addr string) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/", s.handler.HandleUpdate)
-	mux.HandleFunc("/metrics", s.handler.HandleMetrics)
-
-	return http.ListenAndServe(addr, mux)
+	e := echo.New()
+	e.GET("/", s.handler.HandleAllMetrics)
+	// e.GET("/value/",)
+	e.POST("/update/*", s.handler.HandleUpdate)
+	e.Any("/*", func(c echo.Context) error {
+		return c.String(http.StatusNotFound, "Page not found")
+	})
+	err := e.Start(addr)
+	if err != nil {
+		return fmt.Errorf("error starting echo: %w", err)
+	}
+	return nil
 }
 
 func main() {
