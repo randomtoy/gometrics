@@ -1,11 +1,18 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
 	"runtime"
 	"time"
+)
+
+var (
+	enpointAddr    string
+	reportInterval int
+	pollInterval   int
 )
 
 type Agent struct {
@@ -105,6 +112,15 @@ func (a *Agent) Run() {
 }
 
 func main() {
-	agent := NewAgent("http://localhost:8080", 2*time.Second, 10*time.Second)
+	parseFlags()
+	agent := NewAgent(enpointAddr, time.Duration(pollInterval)*time.Second, time.Duration(reportInterval)*time.Second)
 	agent.Run()
+}
+
+func parseFlags() {
+	flag.StringVar(&enpointAddr, "a", "localhost:8080", "server address")
+	flag.IntVar(&reportInterval, "r", 10, "report interval")
+	flag.IntVar(&pollInterval, "p", 2, "poll interval")
+
+	flag.Parse()
 }

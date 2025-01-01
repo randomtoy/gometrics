@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/randomtoy/gometrics/internal/handlers"
 	"github.com/randomtoy/gometrics/internal/storage"
 )
+
+var enpointAddr string
 
 type Server struct {
 	handler *handlers.Handler
@@ -32,12 +35,20 @@ func (s *Server) Run(addr string) error {
 	return nil
 }
 
+func parseFlags() {
+	flag.StringVar(&enpointAddr, "a", "localhost:8080", "endpoint address")
+	flag.Parse()
+}
+
 func main() {
+
+	parseFlags()
+
 	store := storage.NewInMemoryStorage()
 	handler := handlers.NewHandler(store)
 	srv := NewServer(handler)
 
-	err := srv.Run("localhost:8080")
+	err := srv.Run(enpointAddr)
 	if err != nil {
 		panic(err)
 	}
