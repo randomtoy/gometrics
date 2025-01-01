@@ -113,7 +113,7 @@ func (a *Agent) Run() {
 
 func main() {
 	parseFlags()
-	agent := NewAgent(enpointAddr, time.Duration(pollInterval)*time.Second, time.Duration(reportInterval)*time.Second)
+	agent := NewAgent("http://"+enpointAddr, time.Duration(pollInterval)*time.Second, time.Duration(reportInterval)*time.Second)
 	agent.Run()
 }
 
