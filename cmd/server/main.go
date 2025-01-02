@@ -4,13 +4,16 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/labstack/echo/v4"
 	"github.com/randomtoy/gometrics/internal/handlers"
 	"github.com/randomtoy/gometrics/internal/storage"
 )
 
-var enpointAddr string
+type Config struct {
+	Addr string `env:"ADDRESS"`
+}
 
 type Server struct {
 	handler *handlers.Handler
@@ -35,20 +38,28 @@ func (s *Server) Run(addr string) error {
 	return nil
 }
 
-func parseFlags() {
-	flag.StringVar(&enpointAddr, "a", "localhost:8080", "endpoint address")
+func parseFlags(config *Config) {
+	flag.StringVar(&config.Addr, "a", "localhost:8080", "endpoint address")
 	flag.Parse()
 }
 
-func main() {
+func parseEnvironmentFlags(config *Config) {
+	value, ok := os.LookupEnv("ADDRESS")
+	if ok {
+		config.Addr = value
+	}
+}
 
-	parseFlags()
+func main() {
+	config := Config{}
+	parseFlags(&config)
+	parseEnvironmentFlags(&config)
 
 	store := storage.NewInMemoryStorage()
 	handler := handlers.NewHandler(store)
 	srv := NewServer(handler)
 
-	err := srv.Run(enpointAddr)
+	err := srv.Run(config.Addr)
 	if err != nil {
 		panic(err)
 	}
