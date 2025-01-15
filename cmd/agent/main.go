@@ -1,12 +1,21 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
 	"time"
 )
+
+type Config struct {
+	Addr           string `env:"ADDRESS"`
+	reportInterval int    `env:"REPORT_INTERVAL"`
+	pollInterval   int    `env:"POLL_INTERVAL"`
+}
 
 type Agent struct {
 	pollInterval   time.Duration
@@ -105,6 +114,41 @@ func (a *Agent) Run() {
 }
 
 func main() {
-	agent := NewAgent("http://localhost:8080", 2*time.Second, 10*time.Second)
+	config := Config{}
+	parseFlags(&config)
+	parseEnvironmentFlags(&config)
+
+	agent := NewAgent("http://"+config.Addr, time.Duration(config.pollInterval)*time.Second, time.Duration(config.reportInterval)*time.Second)
 	agent.Run()
+}
+
+func parseFlags(config *Config) {
+	flag.StringVar(&config.Addr, "a", "localhost:8080", "server address")
+	flag.IntVar(&config.reportInterval, "r", 10, "report interval")
+	flag.IntVar(&config.pollInterval, "p", 2, "poll interval")
+
+	flag.Parse()
+}
+
+func parseEnvironmentFlags(config *Config) {
+	addr, ok := os.LookupEnv("ADDRESS")
+	if ok {
+		config.Addr = addr
+	}
+	rep, ok := os.LookupEnv("REPORT_INTERVAL")
+	if ok {
+		repInt, err := strconv.Atoi(rep)
+		if err == nil {
+			config.reportInterval = repInt
+		}
+	}
+	poll, ok := os.LookupEnv("POLL_INTERVAL")
+	if ok {
+		pollInt, err := strconv.Atoi(poll)
+		if err == nil {
+			config.pollInterval = pollInt
+		}
+
+	}
+
 }
