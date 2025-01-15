@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 
 	"github.com/randomtoy/gometrics/internal/storage"
 )
@@ -20,6 +21,7 @@ const (
 
 type Handler struct {
 	store storage.Storage
+	log   *zap.Logger
 }
 
 type pathParts struct {
@@ -29,8 +31,23 @@ type pathParts struct {
 	metricValue string
 }
 
-func NewHandler(store storage.Storage) *Handler {
-	return &Handler{store: store}
+type Option func(h *Handler)
+
+func NewHandler(store storage.Storage, opts ...Option) *Handler {
+	logger := zap.NewNop()
+	h := &Handler{
+		store: store,
+		log:   logger,
+	}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+func WithLogger(l *zap.Logger) Option {
+	return func(h *Handler) {
+		h.log = l
+	}
 }
 
 func (h *Handler) HandleUpdate(c echo.Context) error {
@@ -111,6 +128,11 @@ func (h *Handler) HandleAllMetrics(c echo.Context) error {
 
 func (h *Handler) HandleMetrics(c echo.Context) error {
 	path := trimPath(c.Request().URL.Path)
+
+	h.log.Sugar().Infoln(
+		"status", c.Response().Status,
+		"size", c.Response().Size,
+	)
 
 	if path.action != string(ActionValue) {
 		return c.String(http.StatusNotFound, fmt.Sprintln("Action not found"))

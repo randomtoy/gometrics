@@ -8,7 +8,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/randomtoy/gometrics/internal/handlers"
+	"github.com/randomtoy/gometrics/internal/logger"
 	"github.com/randomtoy/gometrics/internal/storage"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -24,14 +26,20 @@ func NewServer(handler *handlers.Handler) *Server {
 }
 
 func (s *Server) Run(addr string) error {
+	l, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	defer l.Sync()
 	e := echo.New()
+	e.Use(logger.ResponseLogger(*l))
 	e.GET("/", s.handler.HandleAllMetrics)
 	e.GET("/value/*", s.handler.HandleMetrics)
 	e.POST("/update/*", s.handler.HandleUpdate)
 	e.Any("/*", func(c echo.Context) error {
 		return c.String(http.StatusNotFound, "Page not found")
 	})
-	err := e.Start(addr)
+	err = e.Start(addr)
 	if err != nil {
 		return fmt.Errorf("error starting echo: %w", err)
 	}
@@ -56,7 +64,9 @@ func main() {
 	parseEnvironmentFlags(&config)
 
 	store := storage.NewInMemoryStorage()
+
 	handler := handlers.NewHandler(store)
+
 	srv := NewServer(handler)
 
 	err := srv.Run(config.Addr)
