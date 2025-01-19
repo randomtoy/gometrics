@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"strings"
 )
 
 type MetricType string
@@ -62,7 +61,7 @@ func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string,
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
-	metric = strings.ToLower(metric)
+	// metric = strings.ToLower(metric)
 	m, ok := s.metrics[metric]
 	if !ok {
 		return Metric{}, fmt.Errorf("can't find metric: %s", metric)
