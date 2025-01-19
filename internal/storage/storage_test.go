@@ -14,8 +14,8 @@ func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 		assert.NoError(t, err)
 
 		metrics := store.GetAllMetrics()
-		assert.Contains(t, metrics, "testgauge")
-		assert.Equal(t, 123.45, metrics["testgauge"].Value)
+		assert.Contains(t, metrics, "TestGauge")
+		assert.Equal(t, 123.45, metrics["TestGauge"].Value)
 	})
 
 	t.Run("Update counter metric", func(t *testing.T) {
