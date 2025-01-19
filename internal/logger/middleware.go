@@ -23,6 +23,7 @@ func ResponseLogger(l zap.Logger) echo.MiddlewareFunc {
 				"status", response.Status,
 				"duration", duration,
 				"size", response.Size,
+				"body", response,
 			)
 			return err
 		}

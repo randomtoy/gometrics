@@ -1,6 +1,6 @@
 GET http://localhost:8080/
 
 
-POST http://localhost:8080/update
+POST http://localhost:8080/update/
 Content-Type: application/json
-{"id":"testcauge","type":"gauge","value": "10"}
+{"id":"TestGauge","type":"gauge","value": "10"}

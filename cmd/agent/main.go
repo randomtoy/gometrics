@@ -87,16 +87,15 @@ func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 
 		data := map[string]interface{}{
 			"id":    name,
-			"mtype": metricType,
-			"value": value,
+			"type":  metricType,
+			"value": fmt.Sprintf("%v", value),
 		}
 		jsonData, err := json.Marshal(data)
 		if err != nil {
 			continue
 		}
-
 		url := fmt.Sprintf("%s/update/", a.serverAddr)
-		req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
+		req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBufferString(string(jsonData)))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(req)
@@ -104,6 +103,7 @@ func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 			fmt.Printf("failed to send metric: %v\n", err)
 			continue
 		}
+
 		resp.Body.Close()
 	}
 }
