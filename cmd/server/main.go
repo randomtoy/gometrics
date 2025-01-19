@@ -34,10 +34,13 @@ func (s *Server) Run(addr string) error {
 	e := echo.New()
 	e.Use(logger.ResponseLogger(*l))
 	e.GET("/", s.handler.HandleAllMetrics)
-	e.GET("/value", s.handler.HandleMetrics)
-	e.POST("/update", s.handler.HandleUpdate)
+	e.GET("/value/*", s.handler.HandleMetrics)
+	e.POST("/value", s.handler.HandleMetricsJSON)
+	e.POST("/update/*", s.handler.HandleUpdate)
+	e.POST("/update", s.handler.HandleUpdateJSON)
+
 	e.Any("/*", func(c echo.Context) error {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "Page not found"})
+		return c.String(http.StatusNotFound, "Page not found")
 	})
 	err = e.Start(addr)
 	if err != nil {
