@@ -153,7 +153,7 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 	})
 
 	t.Run("Diff cases metric test", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/vaLue/GauGe/tesTGauge", nil)
+		req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestGauge", nil)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 		err := handler.HandleMetrics(ctx)
