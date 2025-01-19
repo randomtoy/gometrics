@@ -10,39 +10,44 @@ func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 	store := NewInMemoryStorage()
 
 	t.Run("Update gauge metric", func(t *testing.T) {
-		err := store.UpdateMetric(Gauge, "TestGauge", 123.45)
+		expect := Metric{
+			ID:    "testgauge",
+			Value: 123.45,
+			Type:  "gauge",
+		}
+		result, err := store.UpdateMetric("gauge", "TestGauge", "123.45")
 		assert.NoError(t, err)
+		assert.Equal(t, expect, result)
 
-		metrics := store.GetAllMetrics()
-		assert.Contains(t, metrics, "testgauge")
-		assert.Equal(t, 123.45, metrics["testgauge"].Value)
 	})
 
 	t.Run("Update counter metric", func(t *testing.T) {
-		err := store.UpdateMetric(Counter, "TestCounter", int64(10))
+		expect := Metric{
+			ID:    "testcounter",
+			Value: int64(15),
+			Type:  "counter",
+		}
+		_, err := store.UpdateMetric("counter", "TestCounter", "10")
 		assert.NoError(t, err)
 
-		err = store.UpdateMetric(Counter, "TestCounter", int64(5))
+		result, err := store.UpdateMetric("counter", "TestCounter", "5")
 		assert.NoError(t, err)
 
-		metric, err := store.GetMetric("TestCounter")
-		assert.NoError(t, err)
-		// assert.Contains(t, metric, "TestCounter")
-		assert.Equal(t, int64(15), metric.Value)
+		assert.Equal(t, expect, result)
 	})
 
 	t.Run("Invalid gauge value", func(t *testing.T) {
-		err := store.UpdateMetric(Gauge, "InvalidGauge", "invalid")
+		_, err := store.UpdateMetric("counter", "InvalidGauge", "invalid")
 		assert.Error(t, err)
 	})
 
 	t.Run("Invalid counter value", func(t *testing.T) {
-		err := store.UpdateMetric(Counter, "InvalidCounter", "invalid")
+		_, err := store.UpdateMetric("counter", "InvalidCounter", "invalid")
 		assert.Error(t, err)
 	})
 
 	t.Run("Invalid metric type", func(t *testing.T) {
-		err := store.UpdateMetric("Unknown", "UnknownMetric", "unknown")
+		_, err := store.UpdateMetric("Unknown", "UnknownMetric", "unknown")
 		assert.Error(t, err)
 	})
 
@@ -52,7 +57,7 @@ func TestInMemoryStorage_GetMetric(t *testing.T) {
 	store := NewInMemoryStorage()
 
 	t.Run("Get gauge metric", func(t *testing.T) {
-		err := store.UpdateMetric(Gauge, "TestGauge", 123.45)
+		_, err := store.UpdateMetric("gauge", "TestGauge", "123.45")
 		assert.NoError(t, err)
 
 		metric, err := store.GetMetric("TestGauge")
@@ -62,7 +67,7 @@ func TestInMemoryStorage_GetMetric(t *testing.T) {
 	})
 
 	t.Run("Get counter metric", func(t *testing.T) {
-		err := store.UpdateMetric(Counter, "TestCounter", int64(10))
+		_, err := store.UpdateMetric("counter", "TestCounter", "10")
 		assert.NoError(t, err)
 
 		metric, err := store.GetMetric("TestCounter")

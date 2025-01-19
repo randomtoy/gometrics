@@ -2,23 +2,26 @@ package storage
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
+
+type Metric struct {
+	ID    string
+	Type  MetricType
+	Value any
+}
 
 type MetricType string
 
 const (
 	Gauge   MetricType = "gauge"
 	Counter MetricType = "counter"
+	Unknown MetricType = "unknown"
 )
 
-type Metric struct {
-	Type  MetricType
-	Value interface{}
-}
-
 type Storage interface {
-	UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error
+	UpdateMetric(metricType string, metricName string, metricValue string) (Metric, error)
 	GetAllMetrics() map[string]Metric
 	GetMetric(metric string) (Metric, error)
 }
@@ -33,32 +36,51 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
-func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error {
+func parseMetricType(s string) (MetricType, error) {
+	metricTypes := map[MetricType]struct{}{
+		Gauge:   {},
+		Counter: {},
+		Unknown: {},
+	}
+	mType := MetricType(s)
+	_, ok := metricTypes[mType]
+	if !ok {
+		return Unknown, fmt.Errorf("invalid status: %q", s)
+	}
+	return mType, nil
+}
+
+func (s *InMemoryStorage) UpdateMetric(metricType string, metricName string, metricValue string) (Metric, error) {
 
 	// it's hack for lowering direct write to store
 	metricName = strings.ToLower(metricName)
 
-	switch metricType {
+	mtype, err := parseMetricType(metricType)
+	if err != nil {
+		return Metric{}, err
+	}
+	switch mtype {
 	case Gauge:
-		val, ok := metricValue.(float64)
-		if !ok {
-			return fmt.Errorf("invalid value for gauge metric %T", metricValue)
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return Metric{}, fmt.Errorf("error convertng to float64: %s", err)
 		}
-		s.metrics[metricName] = Metric{Type: Gauge, Value: val}
+
+		s.metrics[metricName] = Metric{ID: metricName, Type: Gauge, Value: value}
 	case Counter:
-		val, ok := metricValue.(int64)
-		if !ok {
-			return fmt.Errorf("invalid value for counter metric %T", metricValue)
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			return Metric{}, fmt.Errorf("error convertng to int64: %s", err)
 		}
 		existing, found := s.metrics[metricName]
 		if found {
-			val += existing.Value.(int64)
+			value += existing.Value.(int64)
 		}
-		s.metrics[metricName] = Metric{Type: Counter, Value: val}
+		s.metrics[metricName] = Metric{ID: metricName, Type: Counter, Value: value}
 	default:
-		return fmt.Errorf("invalid metric type")
+		return Metric{}, fmt.Errorf("invalid metric type")
 	}
-	return nil
+	return s.metrics[metricName], nil
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {

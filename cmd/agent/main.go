@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -83,9 +85,19 @@ func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 			continue
 		}
 
-		url := fmt.Sprintf("%s/update/%s/%s/%v", a.serverAddr, metricType, name, value)
-		req, _ := http.NewRequest(http.MethodPost, url, nil)
-		req.Header.Set("Content-Type", "text/plain")
+		data := map[string]interface{}{
+			"id":    name,
+			"mtype": metricType,
+			"value": value,
+		}
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			continue
+		}
+
+		url := fmt.Sprintf("%s/update/", a.serverAddr)
+		req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {

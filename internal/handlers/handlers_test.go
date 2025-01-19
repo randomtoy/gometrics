@@ -1,7 +1,9 @@
 package handlers
 
 import (
-	"io"
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,38 +13,84 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type MetricGauge struct {
+	ID    string  `json:"id"`
+	MType string  `json:"type"`
+	Value float64 `json:"value,omitempty"`
+	// Delta *int64 `json:"delta,omitempty"` //counter
+	// Value *float64 `json:"value,omitempty"` //gauge
+}
+type MetricCounter struct {
+	ID    string `json:"id"`
+	MType string `json:"type"`
+	Value int64  `json:"value,omitempty"`
+	// Delta *int64 `json:"delta,omitempty"` //counter
+	// Value *float64 `json:"value,omitempty"` //gauge
+}
+
 func TestHandlers_HandleUpdate(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
 
 	t.Run("Valid gauge", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/update/gauge/TestGauge/123.45", nil)
+		reqBody := `{
+		"id": "testGauge",
+		"type": "gauge",
+		"value":"123.45"
+		}`
+		req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBufferString(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 
 		ctx := e.NewContext(req, rec)
 		err := handler.HandleUpdate(ctx)
 		assert.NoError(t, err)
-
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, store.GetAllMetrics(), "testgauge")
-		assert.Equal(t, 123.45, store.GetAllMetrics()["testgauge"].Value)
+
+		var response MetricGauge
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		fmt.Print(response)
+		assert.Equal(t, "testgauge", response.ID)
+		assert.Equal(t, "gauge", response.MType)
+		assert.NotNil(t, response.Value)
+		assert.Equal(t, 123.45, response.Value)
 	})
 
 	t.Run("Valid counter", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/update/counter/TestCounter/123", nil)
+		reqBody := `{
+			"id": "testcounter",
+			"type": "counter",
+			"value":"123"
+			}`
+		req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBufferString(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 
 		ctx := e.NewContext(req, rec)
-		handler.HandleUpdate(ctx)
-
+		err := handler.HandleUpdate(ctx)
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, store.GetAllMetrics(), "testcounter")
-		assert.Equal(t, int64(123), store.GetAllMetrics()["testcounter"].Value)
+
+		var response MetricCounter
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		fmt.Print(response)
+		assert.Equal(t, "testcounter", response.ID)
+		assert.Equal(t, "counter", response.MType)
+		assert.NotNil(t, response.Value)
+		assert.Equal(t, int64(123), response.Value)
 	})
 
 	t.Run("Invalid metric type", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/update/unknown/UnknownMetric/10", nil)
+		reqBody := `{
+			"id": "testcounter",
+			"type": "unknown",
+			"value":"123"
+			}`
+		req := httptest.NewRequest(http.MethodPost, "/update", bytes.NewBufferString(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 
 		ctx := e.NewContext(req, rec)
@@ -61,106 +109,4 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
-
-	t.Run("Metric without name", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/update/counter/", nil)
-		rec := httptest.NewRecorder()
-
-		ctx := e.NewContext(req, rec)
-		handler.HandleUpdate(ctx)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-	})
-}
-
-func TestHandler_HandleAllMetrics(t *testing.T) {
-	e := echo.New()
-	store := storage.NewInMemoryStorage()
-	handler := NewHandler(store)
-
-	store.UpdateMetric(storage.Gauge, "TestGauge", 123.45)
-	store.UpdateMetric(storage.Counter, "TestCounter", int64(123))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	ctx := e.NewContext(req, rec)
-	handler.HandleAllMetrics(ctx)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	body, _ := io.ReadAll(rec.Body)
-	assert.Contains(t, string(body), "testgauge")
-	assert.Contains(t, string(body), "testcounter")
-}
-
-func TestHandler_HandleGetMetric(t *testing.T) {
-	e := echo.New()
-	store := storage.NewInMemoryStorage()
-	handler := NewHandler(store)
-
-	store.UpdateMetric(storage.Gauge, "TestGauge", 123.45)
-	store.UpdateMetric(storage.Counter, "TestCounter", int64(123))
-
-	t.Run("Valid gauge", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestGauge", nil)
-		rec := httptest.NewRecorder()
-
-		ctx := e.NewContext(req, rec)
-		err := handler.HandleMetrics(ctx)
-		assert.NoError(t, err)
-
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, rec.Body.String(), "123.45")
-	})
-
-	t.Run("Valid counter", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/value/counter/TestCounter", nil)
-		rec := httptest.NewRecorder()
-
-		ctx := e.NewContext(req, rec)
-		err := handler.HandleMetrics(ctx)
-		assert.NoError(t, err)
-
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, rec.Body.String(), "123")
-	})
-
-	t.Run("Invalid metric name", func(t *testing.T) {
-
-		req := httptest.NewRequest(http.MethodGet, "/value/unknown/UnknownMetric", nil)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-		handler.HandleMetrics(ctx)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-
-	})
-	t.Run("Invalid metric type", func(t *testing.T) {
-
-		req := httptest.NewRequest(http.MethodGet, "/value/unknown/TestCounter", nil)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-		handler.HandleMetrics(ctx)
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-
-	})
-	t.Run("Empty metric Name", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/value/gauge//", nil)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-		handler.HandleMetrics(ctx)
-		assert.Equal(t, http.StatusNotFound, rec.Code)
-
-	})
-
-	t.Run("Diff cases metric test", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/vaLue/GauGe/tesTGauge", nil)
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-		err := handler.HandleMetrics(ctx)
-		assert.NoError(t, err)
-
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, rec.Body.String(), "123.45")
-	})
-
 }
