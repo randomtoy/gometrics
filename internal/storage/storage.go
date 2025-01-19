@@ -36,7 +36,7 @@ func NewInMemoryStorage() *InMemoryStorage {
 func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) (Metric, error) {
 
 	// it's hack for lowering direct write to store
-	metricName = strings.ToLower(metricName)
+	// metricName = strings.ToLower(metricName)
 
 	switch metricType {
 	case Gauge:
