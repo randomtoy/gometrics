@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"strings"
 )
 
 type MetricType string
@@ -18,7 +17,7 @@ type Metric struct {
 }
 
 type Storage interface {
-	UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error
+	UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) (Metric, error)
 	GetAllMetrics() map[string]Metric
 	GetMetric(metric string) (Metric, error)
 }
@@ -33,22 +32,22 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
-func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error {
+func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) (Metric, error) {
 
 	// it's hack for lowering direct write to store
-	metricName = strings.ToLower(metricName)
+	// metricName = strings.ToLower(metricName)
 
 	switch metricType {
 	case Gauge:
 		val, ok := metricValue.(float64)
 		if !ok {
-			return fmt.Errorf("invalid value for gauge metric %T", metricValue)
+			return Metric{}, fmt.Errorf("invalid value for gauge metric %T", metricValue)
 		}
 		s.metrics[metricName] = Metric{Type: Gauge, Value: val}
 	case Counter:
 		val, ok := metricValue.(int64)
 		if !ok {
-			return fmt.Errorf("invalid value for counter metric %T", metricValue)
+			return Metric{}, fmt.Errorf("invalid value for counter metric %T", metricValue)
 		}
 		existing, found := s.metrics[metricName]
 		if found {
@@ -56,13 +55,13 @@ func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string,
 		}
 		s.metrics[metricName] = Metric{Type: Counter, Value: val}
 	default:
-		return fmt.Errorf("invalid metric type")
+		return Metric{}, fmt.Errorf("invalid metric type")
 	}
-	return nil
+	return s.metrics[metricName], nil
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
-	metric = strings.ToLower(metric)
+	// metric = strings.ToLower(metric)
 	m, ok := s.metrics[metric]
 	if !ok {
 		return Metric{}, fmt.Errorf("can't find metric: %s", metric)

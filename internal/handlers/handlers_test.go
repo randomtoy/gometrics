@@ -25,8 +25,8 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, store.GetAllMetrics(), "testgauge")
-		assert.Equal(t, 123.45, store.GetAllMetrics()["testgauge"].Value)
+		assert.Contains(t, store.GetAllMetrics(), "TestGauge")
+		assert.Equal(t, 123.45, store.GetAllMetrics()["TestGauge"].Value)
 	})
 
 	t.Run("Valid counter", func(t *testing.T) {
@@ -37,8 +37,8 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		handler.HandleUpdate(ctx)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, store.GetAllMetrics(), "testcounter")
-		assert.Equal(t, int64(123), store.GetAllMetrics()["testcounter"].Value)
+		assert.Contains(t, store.GetAllMetrics(), "TestCounter")
+		assert.Equal(t, int64(123), store.GetAllMetrics()["TestCounter"].Value)
 	})
 
 	t.Run("Invalid metric type", func(t *testing.T) {
@@ -89,8 +89,8 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	body, _ := io.ReadAll(rec.Body)
-	assert.Contains(t, string(body), "testgauge")
-	assert.Contains(t, string(body), "testcounter")
+	assert.Contains(t, string(body), "TestGauge")
+	assert.Contains(t, string(body), "TestCounter")
 }
 
 func TestHandler_HandleGetMetric(t *testing.T) {
@@ -153,7 +153,7 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 	})
 
 	t.Run("Diff cases metric test", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/vaLue/GauGe/tesTGauge", nil)
+		req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestGauge", nil)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 		err := handler.HandleMetrics(ctx)
