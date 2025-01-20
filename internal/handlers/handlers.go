@@ -22,7 +22,7 @@ const (
 type JSONMetric struct {
 	ID    string `json:"id"`
 	MType string `json:"type"`
-	Value string `json:"value,omitempty"`
+	Value any    `json:"value,omitempty"`
 }
 
 type Metrics struct {
@@ -83,19 +83,31 @@ func (h *Handler) HandleUpdateJSON(c echo.Context) error {
 	default:
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid metric type: %s", metric.MType)})
 	}
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid value: %s", err)})
-	}
-
+	fmt.Printf("%+v\n", value)
 	// TODO: Get Metric
 	m, err := h.store.UpdateMetric(storage.MetricType(metric.MType), metric.ID, value)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Cant update metric : %s", err)})
 	}
-	respMetric := JSONMetric{
-		ID:    metric.ID,
-		MType: string(m.Type),
-		Value: fmt.Sprintf("%v", m.Value),
+	fmt.Printf("%+v\n", value)
+	var respMetric Metrics
+	switch storage.MetricType(m.Type) {
+
+	case storage.Gauge:
+		respMetric = Metrics{
+			ID:    metric.ID,
+			MType: string(m.Type),
+			Value: m.Value.(float64),
+		}
+	case storage.Counter:
+		respMetric = Metrics{
+			ID:    metric.ID,
+			MType: string(m.Type),
+			Delta: m.Value.(int64),
+		}
+	default:
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid metric type: %s", metric.MType)})
+
 	}
 
 	return c.JSON(http.StatusOK, respMetric)
@@ -214,10 +226,25 @@ func (h *Handler) HandleMetricsJSON(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": fmt.Sprintf("Cant find metric: %s", err)})
 	}
-	respMetric := JSONMetric{
-		ID:    metric.ID,
-		MType: string(m.Type),
-		Value: fmt.Sprintf("%v", m.Value),
+	fmt.Printf("%+v\n", m.Value)
+	var respMetric Metrics
+	switch storage.MetricType(m.Type) {
+
+	case storage.Gauge:
+		respMetric = Metrics{
+			ID:    metric.ID,
+			MType: string(m.Type),
+			Value: m.Value.(float64),
+		}
+	case storage.Counter:
+		respMetric = Metrics{
+			ID:    metric.ID,
+			MType: string(m.Type),
+			Delta: m.Value.(int64),
+		}
+	default:
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid metric type: %s", metric.MType)})
+
 	}
 	return c.JSON(http.StatusOK, respMetric)
 
