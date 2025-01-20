@@ -76,20 +76,26 @@ func (a *Agent) collectMetrics() map[string]interface{} {
 func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 	for name, value := range metrics {
 		var metricType string
+		var data map[string]interface{}
 		switch value.(type) {
 		case float64:
 			metricType = "gauge"
+			data = map[string]interface{}{
+				"id":    name,
+				"type":  metricType,
+				"value": value,
+			}
 		case int64:
 			metricType = "counter"
+			data = map[string]interface{}{
+				"id":    name,
+				"type":  metricType,
+				"delta": value,
+			}
 		default:
 			continue
 		}
 
-		data := map[string]interface{}{
-			"id":    name,
-			"type":  metricType,
-			"value": fmt.Sprintf("%v", value),
-		}
 		jsonData, err := json.Marshal(data)
 		if err != nil {
 			continue

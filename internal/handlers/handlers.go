@@ -25,6 +25,13 @@ type JSONMetric struct {
 	Value string `json:"value,omitempty"`
 }
 
+type Metrics struct {
+	ID    string  `json:"id"`              // имя метрики
+	MType string  `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
+
 type Handler struct {
 	store storage.Storage
 	log   *zap.Logger
@@ -57,24 +64,24 @@ func WithLogger(l *zap.Logger) Option {
 }
 
 func (h *Handler) HandleUpdateJSON(c echo.Context) error {
-	var metric JSONMetric
+	var metric Metrics
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid Body"})
 	}
 
-	if metric.ID == "" || metric.Value == "" {
+	if metric.ID == "" {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
 	}
 
 	var value interface{}
 	switch storage.MetricType(metric.MType) {
 	case storage.Gauge:
-		value, err = strconv.ParseFloat(metric.Value, 64)
+		value = metric.Value
 	case storage.Counter:
-		value, err = strconv.ParseInt(metric.Value, 10, 64)
+		value = metric.Delta
 	default:
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid metric type: %s", metric.Value)})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid metric type: %s", metric.MType)})
 	}
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("Invalid value: %s", err)})
