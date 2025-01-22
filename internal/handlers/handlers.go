@@ -87,27 +87,21 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 
 	}
 	//TODO Return metric
-	var err error
-
 	switch storage.MetricType(path.metricType) {
 	case storage.Gauge:
 		value, err := strconv.ParseFloat(path.metricValue, 64)
 		if err != nil {
-			return c.String(http.StatusBadRequest, fmt.Sprintf("Error converting metric"))
+			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		h.store.UpdateGauge(path.metricName, &value)
 	case storage.Counter:
 		value, err := strconv.ParseInt(path.metricValue, 10, 64)
 		if err != nil {
-			return c.String(http.StatusBadRequest, fmt.Sprintf("Error converting metric"))
+			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		h.store.UpdateCounter(path.metricName, &value)
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid metric type: %s", path.metricType))
-	}
-
-	if err != nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid value: %s", err))
 	}
 
 	return c.String(http.StatusOK, fmt.Sprintln("Metric Updated"))
@@ -178,6 +172,7 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 	handlerMutex.Lock()
 	defer handlerMutex.Unlock()
 
+	h.log.Sugar().Infof("request is: %+v", c.Request().Body)
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
 	}
@@ -187,16 +182,17 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 	}
 
 	// TODO Return Metric
+	var m storage.Metric
 	switch storage.MetricType(metric.MType) {
 	case storage.Gauge:
-		h.store.UpdateGauge(metric.ID, metric.Value)
+		m = h.store.UpdateGauge(metric.ID, metric.Value)
 	case storage.Counter:
-		h.store.UpdateCounter(metric.ID, metric.Delta)
+		m = h.store.UpdateCounter(metric.ID, metric.Delta)
 	default:
 		return c.JSON(http.StatusNotFound, echo.Map{"error": "Invalid metric type"})
 	}
 
-	return c.JSON(http.StatusOK, echo.Map{"info": "Metric updated"})
+	return c.JSON(http.StatusOK, echo.Map{"info": m})
 }
 
 func (h *Handler) GetMetricJSON(c echo.Context) error {
@@ -208,6 +204,7 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	handlerMutex.Lock()
 	defer handlerMutex.Unlock()
 
+	h.log.Sugar().Infof("%+v", metric)
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
 	}

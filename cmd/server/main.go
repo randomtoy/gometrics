@@ -65,10 +65,12 @@ func main() {
 	config := Config{}
 	parseFlags(&config)
 	parseEnvironmentFlags(&config)
+	l, _ := zap.NewProduction()
+	defer l.Sync()
 
 	store := storage.NewInMemoryStorage()
 
-	handler := handlers.NewHandler(store)
+	handler := handlers.NewHandler(store, handlers.WithLogger(l))
 
 	srv := NewServer(handler)
 
