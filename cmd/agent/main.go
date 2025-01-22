@@ -31,6 +31,7 @@ func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Ag
 		serverAddr:     serverAddr,
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
+		pollCount:      0,
 	}
 }
 
@@ -43,7 +44,7 @@ func (a *Agent) collectMetrics() map[string]interface{} {
 		"Alloc":         float64(memStats.Alloc),
 		"BuckHashSys":   float64(memStats.BuckHashSys),
 		"Frees":         float64(memStats.Frees),
-		"GCCPUFraction": memStats.GCCPUFraction,
+		"GCCPUFraction": float64(memStats.GCCPUFraction),
 		"GCSys":         float64(memStats.GCSys),
 		"HeapAlloc":     float64(memStats.HeapAlloc),
 		"HeapIdle":      float64(memStats.HeapIdle),
@@ -79,6 +80,7 @@ func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 		var data map[string]interface{}
 		switch value.(type) {
 		case float64:
+
 			metricType = "gauge"
 			data = map[string]interface{}{
 				"id":    name,
@@ -86,6 +88,7 @@ func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 				"value": value,
 			}
 		case int64:
+			fmt.Printf("Key '%s' is of type int64 with value %d\n", name, value)
 			metricType = "counter"
 			data = map[string]interface{}{
 				"id":    name,

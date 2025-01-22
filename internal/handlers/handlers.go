@@ -172,7 +172,6 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 	handlerMutex.Lock()
 	defer handlerMutex.Unlock()
 
-	h.log.Sugar().Infof("request is: %+v", c.Request().Body)
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
 	}
@@ -204,7 +203,6 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	handlerMutex.Lock()
 	defer handlerMutex.Unlock()
 
-	h.log.Sugar().Infof("%+v", metric)
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
 	}

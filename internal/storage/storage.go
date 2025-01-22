@@ -46,7 +46,7 @@ func (s *InMemoryStorage) UpdateCounter(name string, value *int64) Metric {
 	if found {
 		*value = *value + *existing.Delta
 	}
-	s.metrics[name] = Metric{Type: Gauge, Delta: value}
+	s.metrics[name] = Metric{Type: Counter, Delta: value}
 	return s.metrics[name]
 }
 
