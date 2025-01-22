@@ -34,9 +34,9 @@ func (s *Server) Run(addr string) error {
 	e := echo.New()
 	e.Use(logger.ResponseLogger(*l))
 	e.GET("/", s.handler.HandleAllMetrics)
-	e.POST("/value/", s.handler.HandleMetricsJSON)
+	e.POST("/value/", s.handler.GetMetricJSON)
 	e.GET("/value/*", s.handler.HandleMetrics)
-	e.POST("/update/", s.handler.HandleUpdateJSON)
+	e.POST("/update/", s.handler.UpdateMetricJSON)
 	e.POST("/update/*", s.handler.HandleUpdate)
 
 	e.Any("/*", func(c echo.Context) error {

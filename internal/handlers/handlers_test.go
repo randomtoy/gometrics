@@ -16,6 +16,12 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
 
+	countr := int64(123)
+	gaug := float64(123.45)
+
+	// store.UpdateGauge("TestGauge", &gaug)
+	// store.UpdateCounter("TestCounter", &countr)
+
 	t.Run("Valid gauge", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/update/gauge/TestGauge/123.45", nil)
 		rec := httptest.NewRecorder()
@@ -26,7 +32,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, store.GetAllMetrics(), "TestGauge")
-		assert.Equal(t, 123.45, store.GetAllMetrics()["TestGauge"].Value)
+		assert.Equal(t, &gaug, store.GetAllMetrics()["TestGauge"].Value)
 	})
 
 	t.Run("Valid counter", func(t *testing.T) {
@@ -38,7 +44,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, store.GetAllMetrics(), "TestCounter")
-		assert.Equal(t, int64(123), store.GetAllMetrics()["TestCounter"].Value)
+		assert.Equal(t, &countr, store.GetAllMetrics()["TestCounter"].Delta)
 	})
 
 	t.Run("Invalid metric type", func(t *testing.T) {
@@ -77,8 +83,11 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
 
-	store.UpdateMetric(storage.Gauge, "TestGauge", 123.45)
-	store.UpdateMetric(storage.Counter, "TestCounter", int64(123))
+	countr := int64(123)
+	gaug := float64(123.45)
+
+	store.UpdateGauge("TestGauge", &gaug)
+	store.UpdateCounter("TestCounter", &countr)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -98,8 +107,11 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
 
-	store.UpdateMetric(storage.Gauge, "TestGauge", 123.45)
-	store.UpdateMetric(storage.Counter, "TestCounter", int64(123))
+	countr := int64(123)
+	gaug := float64(123.45)
+
+	store.UpdateGauge("TestGauge", &gaug)
+	store.UpdateCounter("TestCounter", &countr)
 
 	t.Run("Valid gauge", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestGauge", nil)
