@@ -41,7 +41,7 @@ func TestInMemoryStorage_GetMetric(t *testing.T) {
 		metric, err := store.GetMetric("TestGauge")
 		assert.NoError(t, err)
 
-		assert.Equal(t, 123.45, metric.Value)
+		assert.Equal(t, &value, metric.Value)
 	})
 
 	t.Run("Get counter metric", func(t *testing.T) {
