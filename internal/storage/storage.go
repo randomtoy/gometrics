@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"strings"
 )
 
 type MetricType string
@@ -14,11 +13,14 @@ const (
 
 type Metric struct {
 	Type  MetricType
-	Value interface{}
+	Value *float64
+	Delta *int64
 }
 
 type Storage interface {
-	UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error
+	// UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) (Metric, error)
+	UpdateGauge(name string, value *float64) Metric
+	UpdateCounter(name string, value *int64) Metric
 	GetAllMetrics() map[string]Metric
 	GetMetric(metric string) (Metric, error)
 }
@@ -33,36 +35,23 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
-func (s *InMemoryStorage) UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) error {
+func (s *InMemoryStorage) UpdateGauge(name string, value *float64) Metric {
+	s.metrics[name] = Metric{Type: Gauge, Value: value}
+	return s.metrics[name]
+}
 
-	// it's hack for lowering direct write to store
-	metricName = strings.ToLower(metricName)
+func (s *InMemoryStorage) UpdateCounter(name string, value *int64) Metric {
 
-	switch metricType {
-	case Gauge:
-		val, ok := metricValue.(float64)
-		if !ok {
-			return fmt.Errorf("invalid value for gauge metric %T", metricValue)
-		}
-		s.metrics[metricName] = Metric{Type: Gauge, Value: val}
-	case Counter:
-		val, ok := metricValue.(int64)
-		if !ok {
-			return fmt.Errorf("invalid value for counter metric %T", metricValue)
-		}
-		existing, found := s.metrics[metricName]
-		if found {
-			val += existing.Value.(int64)
-		}
-		s.metrics[metricName] = Metric{Type: Counter, Value: val}
-	default:
-		return fmt.Errorf("invalid metric type")
+	existing, found := s.metrics[name]
+	if found {
+		*value = *value + *existing.Delta
 	}
-	return nil
+	s.metrics[name] = Metric{Type: Counter, Delta: value}
+	return s.metrics[name]
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
-	metric = strings.ToLower(metric)
+	// metric = strings.ToLower(metric)
 	m, ok := s.metrics[metric]
 	if !ok {
 		return Metric{}, fmt.Errorf("can't find metric: %s", metric)

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -29,6 +31,7 @@ func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Ag
 		serverAddr:     serverAddr,
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
+		pollCount:      0,
 	}
 }
 
@@ -41,7 +44,7 @@ func (a *Agent) collectMetrics() map[string]interface{} {
 		"Alloc":         float64(memStats.Alloc),
 		"BuckHashSys":   float64(memStats.BuckHashSys),
 		"Frees":         float64(memStats.Frees),
-		"GCCPUFraction": memStats.GCCPUFraction,
+		"GCCPUFraction": float64(memStats.GCCPUFraction),
 		"GCSys":         float64(memStats.GCSys),
 		"HeapAlloc":     float64(memStats.HeapAlloc),
 		"HeapIdle":      float64(memStats.HeapIdle),
@@ -74,24 +77,42 @@ func (a *Agent) collectMetrics() map[string]interface{} {
 func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 	for name, value := range metrics {
 		var metricType string
+		var data map[string]interface{}
 		switch value.(type) {
 		case float64:
+
 			metricType = "gauge"
+			data = map[string]interface{}{
+				"id":    name,
+				"type":  metricType,
+				"value": value,
+			}
 		case int64:
+			fmt.Printf("Key '%s' is of type int64 with value %d\n", name, value)
 			metricType = "counter"
+			data = map[string]interface{}{
+				"id":    name,
+				"type":  metricType,
+				"delta": value,
+			}
 		default:
 			continue
 		}
 
-		url := fmt.Sprintf("%s/update/%s/%s/%v", a.serverAddr, metricType, name, value)
-		req, _ := http.NewRequest(http.MethodPost, url, nil)
-		req.Header.Set("Content-Type", "text/plain")
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			continue
+		}
+		url := fmt.Sprintf("%s/update/", a.serverAddr)
+		req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBufferString(string(jsonData)))
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			fmt.Printf("failed to send metric: %v\n", err)
 			continue
 		}
+
 		resp.Body.Close()
 	}
 }
