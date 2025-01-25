@@ -125,7 +125,7 @@ func (h *Handler) HandleAllMetrics(c echo.Context) error {
 		result += fmt.Sprintf("%s: %v (%s)\n", name, metric.Value, metric.Type)
 	}
 
-	return c.String(http.StatusOK, result)
+	return c.HTML(http.StatusOK, result)
 }
 
 func (h *Handler) HandleMetrics(c echo.Context) error {
