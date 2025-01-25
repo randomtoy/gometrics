@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -19,16 +18,6 @@ const (
 	ActionUpdate HandlerAction = "update"
 	ActionValue  HandlerAction = "value"
 )
-
-var (
-	handlerMutex = &sync.RWMutex{}
-)
-
-// type JSONMetric struct {
-// 	ID    string `json:"id"`
-// 	MType string `json:"type"`
-// 	Value any    `json:"value,omitempty"`
-// }
 
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
@@ -169,8 +158,6 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
 	}
-	handlerMutex.Lock()
-	defer handlerMutex.Unlock()
 
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
@@ -200,8 +187,6 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
 	}
-	handlerMutex.Lock()
-	defer handlerMutex.Unlock()
 
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})

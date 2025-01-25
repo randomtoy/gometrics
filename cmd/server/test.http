@@ -1,6 +1,13 @@
 GET http://localhost:8080/
 
 
+POST http://localhost:8080/update/
+Content-Type: application/json
+{"id":"PollCount1", "type": "counter", "delta": 10}
+
 POST http://localhost:8080/value/
 Content-Type: application/json
-{"id":"PollCount"}
+Accept-Encoding: gzip
+Content-Encoding: gzip
+
+{"id":"PollCount1"}

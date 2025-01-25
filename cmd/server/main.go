@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/randomtoy/gometrics/internal/compress"
 	"github.com/randomtoy/gometrics/internal/handlers"
 	"github.com/randomtoy/gometrics/internal/logger"
 	"github.com/randomtoy/gometrics/internal/storage"
@@ -32,7 +34,12 @@ func (s *Server) Run(addr string) error {
 	}
 	defer l.Sync()
 	e := echo.New()
+
+	e.Use(middleware.Gzip())
+
 	e.Use(logger.ResponseLogger(*l))
+	e.Use(compress.GzipDecompress)
+
 	e.GET("/", s.handler.HandleAllMetrics)
 	e.POST("/value/", s.handler.GetMetricJSON)
 	e.GET("/value/*", s.handler.HandleMetrics)

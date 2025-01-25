@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -103,9 +104,19 @@ func (a *Agent) sendMetrics(metrics map[string]interface{}) {
 		if err != nil {
 			continue
 		}
+		var buf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&buf)
+		_, err = gzipWriter.Write(jsonData)
+		if err != nil {
+			fmt.Printf("failed to compress data: %v", err)
+			continue
+		}
+		gzipWriter.Close()
+
 		url := fmt.Sprintf("%s/update/", a.serverAddr)
-		req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBufferString(string(jsonData)))
+		req, _ := http.NewRequest(http.MethodPost, url, &buf)
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Encoding", "gzip")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
