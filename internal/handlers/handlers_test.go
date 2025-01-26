@@ -139,7 +139,7 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 
 	t.Run("Invalid metric name", func(t *testing.T) {
 
-		req := httptest.NewRequest(http.MethodGet, "/value/unknown/UnknownMetric", nil)
+		req := httptest.NewRequest(http.MethodGet, "/value/counter/UnknownMetric", nil)
 		rec := httptest.NewRecorder()
 		ctx := e.NewContext(req, rec)
 		handler.HandleMetrics(ctx)

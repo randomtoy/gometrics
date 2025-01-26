@@ -139,10 +139,14 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	if path.metricName == "" {
 		return c.String(http.StatusNotFound, fmt.Sprintln("Cant find metric name"))
 	}
+	if path.metricType != "gauge" && path.metricType != "counter" {
+		return c.String(http.StatusBadRequest, fmt.Sprintf("invalid metric type: %v", path.metricType))
+	}
 	metric, err := h.store.GetMetric(path.metricName)
 	if err != nil {
 		return c.String(http.StatusNotFound, fmt.Sprintf("Cant find metric: %s", err))
 	}
+
 	return c.String(http.StatusOK, metric.String())
 }
 
