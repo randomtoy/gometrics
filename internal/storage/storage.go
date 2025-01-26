@@ -42,9 +42,9 @@ func NewInMemoryStorage() *InMemoryStorage {
 func (m Metric) String() string {
 	switch m.Type {
 	case Gauge:
-		return fmt.Sprintf("%s: %v (%s)", m.ID, *m.Value, m.Type)
+		return fmt.Sprintf("%v", *m.Value)
 	case Counter:
-		return fmt.Sprintf("%s: %v (%s)", m.ID, *m.Delta, m.Type)
+		return fmt.Sprintf("%v", *m.Delta)
 	}
 	return ""
 }

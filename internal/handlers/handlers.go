@@ -122,7 +122,7 @@ func (h *Handler) HandleAllMetrics(c echo.Context) error {
 
 	var result []string
 	for _, metric := range metrics {
-		result = append(result, metric.String())
+		result = append(result, fmt.Sprintf("%s: %s (%v)", metric.ID, metric.String(), metric.Type))
 	}
 	response := strings.Join(result, "\n")
 
