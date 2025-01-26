@@ -120,12 +120,13 @@ func getElement(parts []string, index int) string {
 func (h *Handler) HandleAllMetrics(c echo.Context) error {
 	metrics := h.store.GetAllMetrics()
 
-	var result string
-	for name, metric := range metrics {
-		result += fmt.Sprintf("%s: %v (%s)\n", name, metric.Value, metric.Type)
+	var result []string
+	for _, metric := range metrics {
+		result = append(result, metric.String())
 	}
+	response := strings.Join(result, "\n")
 
-	return c.HTML(http.StatusOK, result)
+	return c.HTML(http.StatusOK, response)
 }
 
 func (h *Handler) HandleMetrics(c echo.Context) error {
@@ -142,14 +143,7 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusNotFound, fmt.Sprintf("Cant find metric: %s", err))
 	}
-	switch storage.MetricType(path.metricType) {
-	case storage.Gauge:
-		return c.String(http.StatusOK, fmt.Sprintf("%v", *metric.Value))
-	case storage.Counter:
-		return c.String(http.StatusOK, fmt.Sprintf("%v", *metric.Delta))
-	default:
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Unknown metric type: %s", path.metricType))
-	}
+	return c.String(http.StatusOK, metric.String())
 }
 
 func (h *Handler) UpdateMetricJSON(c echo.Context) error {

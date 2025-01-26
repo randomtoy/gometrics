@@ -15,10 +15,10 @@ type responseWriterWithBody struct {
 	body   *bytes.Buffer
 }
 
-func (w *responseWriterWithBody) WriteHeader(statusCode int) {
-	w.status = statusCode
-	w.ResponseWriter.WriteHeader(statusCode)
-}
+// func (w *responseWriterWithBody) WriteHeader(statusCode int) {
+// 	w.status = statusCode
+// 	w.ResponseWriter.WriteHeader(statusCode)
+// }
 
 func (w *responseWriterWithBody) Write(data []byte) (int, error) {
 	w.body.Write(data)

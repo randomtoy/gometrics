@@ -15,13 +15,13 @@ const (
 )
 
 type Metric struct {
+	ID    string
 	Type  MetricType
 	Value *float64
 	Delta *int64
 }
 
 type Storage interface {
-	// UpdateMetric(metricType MetricType, metricName string, metricValue interface{}) (Metric, error)
 	UpdateGauge(name string, value *float64) Metric
 	UpdateCounter(name string, value *int64) Metric
 	GetAllMetrics() map[string]Metric
@@ -39,8 +39,18 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
+func (m Metric) String() string {
+	switch m.Type {
+	case Gauge:
+		return fmt.Sprintf("%s: %v (%s)", m.ID, *m.Value, m.Type)
+	case Counter:
+		return fmt.Sprintf("%s: %v (%s)", m.ID, *m.Delta, m.Type)
+	}
+	return ""
+}
+
 func (s *InMemoryStorage) UpdateGauge(name string, value *float64) Metric {
-	s.metrics[name] = Metric{Type: Gauge, Value: value}
+	s.metrics[name] = Metric{ID: name, Type: Gauge, Value: value}
 	return s.metrics[name]
 }
 
@@ -50,12 +60,12 @@ func (s *InMemoryStorage) UpdateCounter(name string, value *int64) Metric {
 	if found {
 		*value = *value + *existing.Delta
 	}
-	s.metrics[name] = Metric{Type: Counter, Delta: value}
+	s.metrics[name] = Metric{ID: name, Type: Counter, Delta: value}
 	return s.metrics[name]
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {
-	// metric = strings.ToLower(metric)
+
 	m, ok := s.metrics[metric]
 	if !ok {
 		return Metric{}, fmt.Errorf("can't find metric: %s", metric)
