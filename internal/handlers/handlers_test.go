@@ -85,7 +85,7 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 	handler := NewHandler(store)
 	counterValue := int64(10)
 	counterMetric := storage.Metric{
-		Type:  storage.Gauge,
+		Type:  storage.Counter,
 		ID:    "TestCounter",
 		Delta: &counterValue,
 	}
@@ -118,7 +118,7 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 
 	counterValue := int64(10)
 	counterMetric := storage.Metric{
-		Type:  storage.Gauge,
+		Type:  storage.Counter,
 		ID:    "TestCounter",
 		Delta: &counterValue,
 	}
@@ -152,7 +152,7 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, rec.Body.String(), "123")
+		assert.Contains(t, rec.Body.String(), "10")
 	})
 
 	t.Run("Invalid metric name", func(t *testing.T) {
