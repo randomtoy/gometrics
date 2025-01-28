@@ -20,9 +20,6 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 
 	gaugeValue := float64(123.45)
 
-	// store.UpdateGauge("TestGauge", &gaug)
-	// store.UpdateCounter("TestCounter", &countr)
-
 	t.Run("Valid gauge", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/update/gauge/TestGauge/123.45", nil)
 		rec := httptest.NewRecorder()
