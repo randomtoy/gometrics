@@ -16,8 +16,9 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
 
-	countr := int64(123)
-	gaug := float64(123.45)
+	counterValue := int64(10)
+
+	gaugeValue := float64(123.45)
 
 	// store.UpdateGauge("TestGauge", &gaug)
 	// store.UpdateCounter("TestCounter", &countr)
@@ -32,11 +33,11 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, store.GetAllMetrics(), "TestGauge")
-		assert.Equal(t, &gaug, store.GetAllMetrics()["TestGauge"].Value)
+		assert.Equal(t, &gaugeValue, store.GetAllMetrics()["TestGauge"].Value)
 	})
 
 	t.Run("Valid counter", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/update/counter/TestCounter/123", nil)
+		req := httptest.NewRequest(http.MethodPost, "/update/counter/TestCounter/10", nil)
 		rec := httptest.NewRecorder()
 
 		ctx := e.NewContext(req, rec)
@@ -44,7 +45,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, store.GetAllMetrics(), "TestCounter")
-		assert.Equal(t, &countr, store.GetAllMetrics()["TestCounter"].Delta)
+		assert.Equal(t, &counterValue, store.GetAllMetrics()["TestCounter"].Delta)
 	})
 
 	t.Run("Invalid metric type", func(t *testing.T) {
@@ -82,12 +83,20 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
-
-	countr := int64(123)
-	gaug := float64(123.45)
-
-	store.UpdateGauge("TestGauge", &gaug)
-	store.UpdateCounter("TestCounter", &countr)
+	counterValue := int64(10)
+	counterMetric := storage.Metric{
+		Type:  storage.Gauge,
+		ID:    "TestCounter",
+		Delta: &counterValue,
+	}
+	gaugeValue := float64(123.45)
+	gaugeMetric := storage.Metric{
+		Type:  storage.Gauge,
+		ID:    "TestGauge",
+		Value: &gaugeValue,
+	}
+	store.UpdateMetric(counterMetric)
+	store.UpdateMetric(gaugeMetric)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -107,11 +116,20 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 	store := storage.NewInMemoryStorage()
 	handler := NewHandler(store)
 
-	countr := int64(123)
-	gaug := float64(123.45)
-
-	store.UpdateGauge("TestGauge", &gaug)
-	store.UpdateCounter("TestCounter", &countr)
+	counterValue := int64(10)
+	counterMetric := storage.Metric{
+		Type:  storage.Gauge,
+		ID:    "TestCounter",
+		Delta: &counterValue,
+	}
+	gaugeValue := float64(123.45)
+	gaugeMetric := storage.Metric{
+		Type:  storage.Gauge,
+		ID:    "TestGauge",
+		Value: &gaugeValue,
+	}
+	store.UpdateMetric(counterMetric)
+	store.UpdateMetric(gaugeMetric)
 
 	t.Run("Valid gauge", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestGauge", nil)

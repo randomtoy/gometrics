@@ -15,15 +15,14 @@ const (
 )
 
 type Metric struct {
-	ID    string
-	Type  MetricType
-	Value *float64
-	Delta *int64
+	ID    string     `json:"id"`
+	Type  MetricType `json:"type"`
+	Value *float64   `json:"value,omitempty"`
+	Delta *int64     `json:"delta,omitempty"`
 }
 
 type Storage interface {
-	UpdateGauge(name string, value *float64) Metric
-	UpdateCounter(name string, value *int64) Metric
+	UpdateMetric(metric Metric) Metric
 	GetAllMetrics() map[string]Metric
 	GetMetric(metric string) (Metric, error)
 }
@@ -49,19 +48,15 @@ func (m Metric) String() string {
 	return ""
 }
 
-func (s *InMemoryStorage) UpdateGauge(name string, value *float64) Metric {
-	s.metrics[name] = Metric{ID: name, Type: Gauge, Value: value}
-	return s.metrics[name]
-}
-
-func (s *InMemoryStorage) UpdateCounter(name string, value *int64) Metric {
-
-	existing, found := s.metrics[name]
-	if found {
-		*value = *value + *existing.Delta
+func (s *InMemoryStorage) UpdateMetric(metric Metric) Metric {
+	if metric.Type == Counter {
+		existing, found := s.metrics[metric.ID]
+		if found {
+			*metric.Delta += *existing.Delta
+		}
 	}
-	s.metrics[name] = Metric{ID: name, Type: Counter, Delta: value}
-	return s.metrics[name]
+	s.metrics[metric.ID] = metric
+	return s.metrics[metric.ID]
 }
 
 func (s *InMemoryStorage) GetMetric(metric string) (Metric, error) {

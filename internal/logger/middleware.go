@@ -16,7 +16,7 @@ type responseWriterWithBody struct {
 }
 
 func (w *responseWriterWithBody) Write(data []byte) (int, error) {
-	w.body.Write(data)
+	_, _ = w.body.Write(data)
 	return w.ResponseWriter.Write(data)
 }
 

@@ -19,13 +19,6 @@ const (
 	ActionValue  HandlerAction = "value"
 )
 
-type Metrics struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
-}
-
 type Handler struct {
 	store storage.Storage
 	log   *zap.Logger
@@ -75,20 +68,26 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 		return c.String(http.StatusBadRequest, fmt.Sprintln("Incorrect Value"))
 
 	}
+
+	var metric storage.Metric
+	metric.ID = path.metricName
+	metric.Type = storage.MetricType(path.metricType)
 	//TODO Return metric
-	switch storage.MetricType(path.metricType) {
+	switch metric.Type {
 	case storage.Gauge:
 		value, err := strconv.ParseFloat(path.metricValue, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
-		h.store.UpdateGauge(path.metricName, &value)
+		metric.Value = &value
+		_ = h.store.UpdateMetric(metric)
 	case storage.Counter:
 		value, err := strconv.ParseInt(path.metricValue, 10, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
-		h.store.UpdateCounter(path.metricName, &value)
+		metric.Delta = &value
+		_ = h.store.UpdateMetric(metric)
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid metric type: %s", path.metricType))
 	}
@@ -111,7 +110,6 @@ func trimPath(path string) pathParts {
 
 func getElement(parts []string, index int) string {
 	if index < 0 || index >= len(parts) {
-		// return "", fmt.Errorf("index %d out of range (length: %d)", index, len(parts))
 		return ""
 	}
 	return parts[index]
@@ -151,7 +149,7 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 }
 
 func (h *Handler) UpdateMetricJSON(c echo.Context) error {
-	var metric Metrics
+	var metric storage.Metric
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
@@ -165,22 +163,12 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Empty Value"})
 	}
 
-	// TODO Return Metric
-	var m storage.Metric
-	switch storage.MetricType(metric.MType) {
-	case storage.Gauge:
-		m = h.store.UpdateGauge(metric.ID, metric.Value)
-	case storage.Counter:
-		m = h.store.UpdateCounter(metric.ID, metric.Delta)
-	default:
-		return c.JSON(http.StatusNotFound, echo.Map{"error": "Invalid metric type"})
-	}
-
+	m := h.store.UpdateMetric(metric)
 	return c.JSON(http.StatusOK, echo.Map{"info": m})
 }
 
 func (h *Handler) GetMetricJSON(c echo.Context) error {
-	var metric Metrics
+	var metric storage.Metric
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
