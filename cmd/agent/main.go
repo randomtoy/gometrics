@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -9,6 +12,15 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/labstack/gommon/log"
+)
+
+type Type string
+
+const (
+	Gauge   Type = "gauge"
+	Counter Type = "counter"
 )
 
 type Config struct {
@@ -24,24 +36,56 @@ type Agent struct {
 	pollCount      int64
 }
 
+type Metric struct {
+	Type  Type
+	ID    string
+	Delta *int64
+	Value *float64
+}
+
+type Metrics struct {
+	Value []Metric
+}
+
+func convertToMetrics(data map[string]interface{}) Metrics {
+	var metrics Metrics
+	for key, value := range data {
+		metric := Metric{
+			ID: key,
+		}
+
+		switch v := value.(type) {
+		case float64:
+			metric.Type = Gauge
+			metric.Value = &v
+		case int64:
+			metric.Type = Counter
+			metric.Delta = &v
+		}
+		metrics.Value = append(metrics.Value, metric)
+	}
+	return metrics
+}
+
 func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Agent {
 	return &Agent{
 		serverAddr:     serverAddr,
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
+		pollCount:      0,
 	}
 }
 
-func (a *Agent) collectMetrics() map[string]interface{} {
+func (a *Agent) collectMetrics() Metrics {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
 	a.pollCount++
-	return map[string]interface{}{
+	data := map[string]interface{}{
 		"Alloc":         float64(memStats.Alloc),
 		"BuckHashSys":   float64(memStats.BuckHashSys),
 		"Frees":         float64(memStats.Frees),
-		"GCCPUFraction": memStats.GCCPUFraction,
+		"GCCPUFraction": float64(memStats.GCCPUFraction),
 		"GCSys":         float64(memStats.GCSys),
 		"HeapAlloc":     float64(memStats.HeapAlloc),
 		"HeapIdle":      float64(memStats.HeapIdle),
@@ -69,31 +113,44 @@ func (a *Agent) collectMetrics() map[string]interface{} {
 		"PollCount":   a.pollCount,
 		"RandomValue": rand.Float64(),
 	}
+	metrics := convertToMetrics(data)
+	return metrics
 }
 
-func (a *Agent) sendMetrics(metrics map[string]interface{}) {
-	for name, value := range metrics {
-		var metricType string
-		switch value.(type) {
-		case float64:
-			metricType = "gauge"
-		case int64:
-			metricType = "counter"
-		default:
+func (a *Agent) sendMetrics(metrics Metrics) {
+	for _, metric := range metrics.Value {
+		jsonData, err := json.Marshal(metric)
+		if err != nil {
 			continue
 		}
+		var buf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&buf)
+		_, err = gzipWriter.Write(jsonData)
+		if err != nil {
+			fmt.Printf("failed to compress data: %v", err)
+			continue
+		}
+		gzipWriter.Close()
 
-		url := fmt.Sprintf("%s/update/%s/%s/%v", a.serverAddr, metricType, name, value)
-		req, _ := http.NewRequest(http.MethodPost, url, nil)
-		req.Header.Set("Content-Type", "text/plain")
+		url := fmt.Sprintf("%s/update/", a.serverAddr)
+		req, err := http.NewRequest(http.MethodPost, url, &buf)
+		if err != nil {
+			log.Errorf("Can't wrap Request: %v", err)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Encoding", "gzip")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			fmt.Printf("failed to send metric: %v\n", err)
 			continue
 		}
+
 		resp.Body.Close()
+
 	}
+
 }
 
 func (a *Agent) Run() {
@@ -101,7 +158,7 @@ func (a *Agent) Run() {
 	reportTicker := time.NewTicker(a.reportInterval)
 	defer pollTicker.Stop()
 	defer reportTicker.Stop()
-	var metrics map[string]interface{}
+	var metrics Metrics
 	for {
 		select {
 		case <-pollTicker.C:

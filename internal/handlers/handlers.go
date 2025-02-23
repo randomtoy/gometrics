@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 
 	"github.com/randomtoy/gometrics/internal/storage"
 )
@@ -20,6 +21,7 @@ const (
 
 type Handler struct {
 	store storage.Storage
+	log   *zap.Logger
 }
 
 type pathParts struct {
@@ -29,8 +31,23 @@ type pathParts struct {
 	metricValue string
 }
 
-func NewHandler(store storage.Storage) *Handler {
-	return &Handler{store: store}
+type Option func(h *Handler)
+
+func NewHandler(store storage.Storage, opts ...Option) *Handler {
+	logger := zap.NewNop()
+	h := &Handler{
+		store: store,
+		log:   logger,
+	}
+	for _, o := range opts {
+		o(h)
+	}
+	return h
+}
+func WithLogger(l *zap.Logger) Option {
+	return func(h *Handler) {
+		h.log = l
+	}
 }
 
 func (h *Handler) HandleUpdate(c echo.Context) error {
@@ -52,26 +69,27 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 
 	}
 
-	var value interface{}
-	var err error
-
-	switch storage.MetricType(path.metricType) {
+	var metric storage.Metric
+	metric.ID = path.metricName
+	metric.Type = storage.MetricType(path.metricType)
+	//TODO Return metric
+	switch metric.Type {
 	case storage.Gauge:
-
-		value, err = strconv.ParseFloat(path.metricValue, 64)
+		value, err := strconv.ParseFloat(path.metricValue, 64)
+		if err != nil {
+			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
+		}
+		metric.Value = &value
+		_ = h.store.UpdateMetric(metric)
 	case storage.Counter:
-		value, err = strconv.ParseInt(path.metricValue, 10, 64)
+		value, err := strconv.ParseInt(path.metricValue, 10, 64)
+		if err != nil {
+			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
+		}
+		metric.Delta = &value
+		_ = h.store.UpdateMetric(metric)
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid metric type: %s", path.metricType))
-	}
-
-	if err != nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid value: %s", err))
-	}
-
-	err = h.store.UpdateMetric(storage.MetricType(path.metricType), path.metricName, value)
-	if err != nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Cant update metric : %s", err))
 	}
 
 	return c.String(http.StatusOK, fmt.Sprintln("Metric Updated"))
@@ -79,7 +97,7 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 
 func trimPath(path string) pathParts {
 	var paths pathParts
-	parts := strings.Split(strings.ToLower(path), "/")
+	parts := strings.Split(path, "/")
 
 	paths.action = getElement(parts, 1)
 	paths.metricType = getElement(parts, 2)
@@ -92,7 +110,6 @@ func trimPath(path string) pathParts {
 
 func getElement(parts []string, index int) string {
 	if index < 0 || index >= len(parts) {
-		// return "", fmt.Errorf("index %d out of range (length: %d)", index, len(parts))
 		return ""
 	}
 	return parts[index]
@@ -101,12 +118,13 @@ func getElement(parts []string, index int) string {
 func (h *Handler) HandleAllMetrics(c echo.Context) error {
 	metrics := h.store.GetAllMetrics()
 
-	var result string
-	for name, metric := range metrics {
-		result += fmt.Sprintf("%s: %v (%s)\n", name, metric.Value, metric.Type)
+	var result []string
+	for _, metric := range metrics {
+		result = append(result, fmt.Sprintf("%s: %s (%v)", metric.ID, metric.String(), metric.Type))
 	}
+	response := strings.Join(result, "\n")
 
-	return c.String(http.StatusOK, result)
+	return c.HTML(http.StatusOK, response)
 }
 
 func (h *Handler) HandleMetrics(c echo.Context) error {
@@ -119,16 +137,51 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	if path.metricName == "" {
 		return c.String(http.StatusNotFound, fmt.Sprintln("Cant find metric name"))
 	}
+	if path.metricType != "gauge" && path.metricType != "counter" {
+		return c.String(http.StatusBadRequest, fmt.Sprintf("invalid metric type: %v", path.metricType))
+	}
 	metric, err := h.store.GetMetric(path.metricName)
 	if err != nil {
 		return c.String(http.StatusNotFound, fmt.Sprintf("Cant find metric: %s", err))
 	}
-	switch storage.MetricType(path.metricType) {
-	case storage.Gauge:
-		return c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
-	case storage.Counter:
-		return c.String(http.StatusOK, fmt.Sprintf("%v", metric.Value))
-	default:
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Unknown metric type: %s", path.metricType))
+
+	return c.String(http.StatusOK, metric.String())
+}
+
+func (h *Handler) UpdateMetricJSON(c echo.Context) error {
+	var metric storage.Metric
+	err := c.Bind(&metric)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
 	}
+
+	if metric.ID == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
+	}
+
+	if metric.Delta == nil && metric.Value == nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Empty Value"})
+	}
+
+	m := h.store.UpdateMetric(metric)
+	return c.JSON(http.StatusOK, echo.Map{"info": m})
+}
+
+func (h *Handler) GetMetricJSON(c echo.Context) error {
+	var metric storage.Metric
+	err := c.Bind(&metric)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
+	}
+
+	if metric.ID == "" {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
+	}
+	m, err := h.store.GetMetric(metric.ID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, echo.Map{"error": "Metric not found"})
+	}
+
+	return c.JSON(http.StatusOK, m)
+
 }
