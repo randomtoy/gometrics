@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/randomtoy/gometrics/internal/compress"
+	"github.com/randomtoy/gometrics/internal/db"
 	"github.com/randomtoy/gometrics/internal/handlers"
 	"github.com/randomtoy/gometrics/internal/logger"
 	"github.com/randomtoy/gometrics/internal/storage"
@@ -22,6 +23,7 @@ type Config struct {
 	StoreInterval int    `env:"STORE_INTERVAL"`
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
+	DatabaseDSN   string `env:"DATABASE_DSN"`
 }
 
 type Server struct {
@@ -46,6 +48,7 @@ func (s *Server) Run(addr string) error {
 	e.Use(compress.GzipDecompress)
 
 	e.GET("/", s.handler.HandleAllMetrics)
+	e.GET("/ping", s.handler.PingDBHandler)
 	e.POST("/value/", s.handler.GetMetricJSON)
 	e.GET("/value/*", s.handler.HandleMetrics)
 	e.POST("/update/", s.handler.UpdateMetricJSON)
@@ -66,6 +69,7 @@ func parseFlags(config *Config) {
 	flag.IntVar(&config.StoreInterval, "i", 10, "Store metric niterval")
 	flag.StringVar(&config.FilePath, "f", "/tmp/metrics.json", "file path")
 	flag.BoolVar(&config.Restore, "r", true, "Restore metrics")
+	flag.StringVar(&config.DatabaseDSN, "d", "", "PGconnection string")
 	flag.Parse()
 }
 
@@ -85,6 +89,10 @@ func parseEnvironmentFlags(config *Config) {
 	r, ok := os.LookupEnv("RESTORE")
 	if ok {
 		config.Restore, _ = strconv.ParseBool(r)
+	}
+	dsn, ok := os.LookupEnv("DATABASE_DSN")
+	if ok {
+		config.DatabaseDSN = dsn
 	}
 }
 
@@ -115,11 +123,17 @@ func main() {
 		}
 	}()
 
-	handler := handlers.NewHandler(store, handlers.WithLogger(l))
+	dbconn, err := db.NewDBConnector(config.DatabaseDSN)
+	if err != nil {
+		panic(err)
+	}
+	defer dbconn.Close()
+
+	handler := handlers.NewHandler(store, dbconn, handlers.WithLogger(l))
 
 	srv := NewServer(handler)
 
-	err := srv.Run(config.Addr)
+	err = srv.Run(config.Addr)
 	if err != nil {
 		panic(err)
 	}

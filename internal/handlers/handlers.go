@@ -1,14 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
+	"github.com/randomtoy/gometrics/internal/db"
 	"github.com/randomtoy/gometrics/internal/storage"
 )
 
@@ -21,6 +24,7 @@ const (
 
 type Handler struct {
 	store storage.Storage
+	db    db.DBConnector
 	log   *zap.Logger
 }
 
@@ -33,10 +37,11 @@ type pathParts struct {
 
 type Option func(h *Handler)
 
-func NewHandler(store storage.Storage, opts ...Option) *Handler {
+func NewHandler(store storage.Storage, db db.DBConnector, opts ...Option) *Handler {
 	logger := zap.NewNop()
 	h := &Handler{
 		store: store,
+		db:    db,
 		log:   logger,
 	}
 	for _, o := range opts {
@@ -183,5 +188,17 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, m)
+
+}
+
+func (h *Handler) PingDBHandler(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := h.db.Ping(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "DB is not OK"})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"info": "DB is OK"})
 
 }
