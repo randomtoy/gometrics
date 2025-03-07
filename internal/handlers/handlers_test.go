@@ -114,7 +114,8 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 func TestHandler_HandleGetMetric(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
-	handler := NewHandler(store)
+	dbconn := db.DBConnector{}
+	handler := NewHandler(store, dbconn)
 
 	counterValue := int64(10)
 	counterMetric := storage.Metric{
