@@ -18,10 +18,6 @@ func NewDBConnector(dsn string) (DBConnector, error) {
 	if err != nil {
 		return DBConnector{}, err
 	}
-	err = db.Ping()
-	if err != nil {
-		return DBConnector{}, err
-	}
 	var dbconn DBConnector
 	dbconn.DB = db
 	return dbconn, nil
