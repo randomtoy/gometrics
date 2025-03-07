@@ -31,5 +31,5 @@ func (dbconn *DBConnector) Close() {
 }
 
 func (dbconn *DBConnector) Ping(ctx context.Context) error {
-	return dbconn.DB.Ping()
+	return dbconn.DB.PingContext(ctx)
 }
