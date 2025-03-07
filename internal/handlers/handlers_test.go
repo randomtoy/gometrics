@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/randomtoy/gometrics/internal/db"
 	"github.com/randomtoy/gometrics/internal/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +15,8 @@ import (
 func TestHandlers_HandleUpdate(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
-	handler := NewHandler(store)
+	dbconn := db.DBConnector{}
+	handler := NewHandler(store, dbconn)
 
 	counterValue := int64(10)
 
