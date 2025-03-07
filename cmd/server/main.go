@@ -127,6 +127,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer dbconn.Close()
 
 	handler := handlers.NewHandler(store, dbconn, handlers.WithLogger(l))
 
