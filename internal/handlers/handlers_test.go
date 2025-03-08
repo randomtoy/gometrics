@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/randomtoy/gometrics/internal/db"
 	"github.com/randomtoy/gometrics/internal/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,6 +15,7 @@ import (
 func TestHandlers_HandleUpdate(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
+	dbconn := db.DBStorage{}
 	handler := NewHandler(store)
 
 	counterValue := int64(10)
@@ -79,7 +81,8 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 func TestHandler_HandleAllMetrics(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
-	handler := NewHandler(store)
+	dbconn := db.DBStorage{}
+	handler := NewHandler(store, dbconn)
 	counterValue := int64(10)
 	counterMetric := storage.Metric{
 		Type:  storage.Counter,
@@ -111,7 +114,8 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 func TestHandler_HandleGetMetric(t *testing.T) {
 	e := echo.New()
 	store := storage.NewInMemoryStorage()
-	handler := NewHandler(store)
+	dbconn := db.DBStorage{}
+	handler := NewHandler(store, dbconn)
 
 	counterValue := int64(10)
 	counterMetric := storage.Metric{

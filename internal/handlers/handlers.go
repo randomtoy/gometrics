@@ -1,14 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
+	"github.com/randomtoy/gometrics/internal/model"
 	"github.com/randomtoy/gometrics/internal/storage"
 )
 
@@ -69,25 +72,25 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 
 	}
 
-	var metric storage.Metric
+	var metric model.Metric
 	metric.ID = path.metricName
-	metric.Type = storage.MetricType(path.metricType)
+	metric.Type = model.MetricType(path.metricType)
 	//TODO Return metric
 	switch metric.Type {
-	case storage.Gauge:
+	case model.Gauge:
 		value, err := strconv.ParseFloat(path.metricValue, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		metric.Value = &value
-		_ = h.store.UpdateMetric(metric)
-	case storage.Counter:
+		_, _ = h.store.UpdateMetric(metric)
+	case model.Counter:
 		value, err := strconv.ParseInt(path.metricValue, 10, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		metric.Delta = &value
-		_ = h.store.UpdateMetric(metric)
+		_, _ = h.store.UpdateMetric(metric)
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid metric type: %s", path.metricType))
 	}
@@ -116,7 +119,7 @@ func getElement(parts []string, index int) string {
 }
 
 func (h *Handler) HandleAllMetrics(c echo.Context) error {
-	metrics := h.store.GetAllMetrics()
+	metrics, _ := h.store.GetAllMetrics()
 
 	var result []string
 	for _, metric := range metrics {
@@ -149,7 +152,7 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 }
 
 func (h *Handler) UpdateMetricJSON(c echo.Context) error {
-	var metric storage.Metric
+	var metric model.Metric
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
@@ -163,12 +166,12 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Empty Value"})
 	}
 
-	m := h.store.UpdateMetric(metric)
+	m, _ := h.store.UpdateMetric(metric)
 	return c.JSON(http.StatusOK, echo.Map{"info": m})
 }
 
 func (h *Handler) GetMetricJSON(c echo.Context) error {
-	var metric storage.Metric
+	var metric model.Metric
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
@@ -183,5 +186,17 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, m)
+
+}
+
+func (h *Handler) PingDBHandler(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := h.store.Ping(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "DB is not OK"})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"info": "DB is OK"})
 
 }
