@@ -5,10 +5,12 @@ import (
 
 	"github.com/randomtoy/gometrics/internal/model"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestInMemoryStorage_UpdateMetric(t *testing.T) {
-	store := NewInMemoryStorage()
+	l := zap.NewNop()
+	store := NewInMemoryStorage(l, "")
 
 	counterValue := int64(10)
 	counterMetric := model.Metric{
@@ -44,7 +46,9 @@ func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 }
 
 func TestInMemoryStorage_GetMetric(t *testing.T) {
-	store := NewInMemoryStorage()
+	l := zap.NewNop()
+	store := NewInMemoryStorage(l, "")
+
 	counterValue := int64(10)
 	counterMetric := model.Metric{
 		Type:  model.Gauge,

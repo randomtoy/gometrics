@@ -41,17 +41,19 @@ func NewStorage(l *zap.Logger, config model.Config) (Storage, error) {
 			l.Fatal("restoring error: %v", zap.Error(err))
 		}
 		l.Info("restore success")
-	}
 
-	ticker := time.NewTicker(time.Duration(config.StoreInterval) * time.Second)
-	go func() {
-		for range ticker.C {
-			err := store.SaveToFile(config.FilePath)
-			if err != nil {
-				l.Sugar().Infof("error saving metrics: %v", err)
+	}
+	if config.FilePath != "" {
+		ticker := time.NewTicker(time.Duration(config.StoreInterval) * time.Second)
+		go func() {
+			for range ticker.C {
+				err := store.SaveToFile(config.FilePath)
+				if err != nil {
+					l.Sugar().Infof("error saving metrics: %v", err)
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	return store, nil
 }

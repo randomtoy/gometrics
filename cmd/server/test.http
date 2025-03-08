@@ -16,3 +16,5 @@ Content-Type: application/json
 {"id":"PollCount14"}
 
 GET http://localhost:8080/ping
+
+POST http://localhost:8080/update/counter/TestCounter/10

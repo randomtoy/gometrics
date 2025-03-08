@@ -59,7 +59,7 @@ func parseFlags(config *model.Config) {
 	flag.StringVar(&config.DatabaseDSN, "d", "", "PGconnection string")
 	flag.StringVar(&config.Addr, "a", "localhost:8080", "endpoint address")
 	flag.IntVar(&config.StoreInterval, "i", 10, "Store metric niterval")
-	flag.StringVar(&config.FilePath, "f", "/tmp/metrics.json", "file path")
+	flag.StringVar(&config.FilePath, "f", "", "file path")
 	flag.BoolVar(&config.Restore, "r", true, "Restore metrics")
 
 	flag.Parse()
