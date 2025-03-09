@@ -148,9 +148,7 @@ func (a *Agent) sendMetricsBatch(metrics []Metric) {
 		fmt.Printf("Can't send metrics %v due to error: %v", backoff, err)
 		time.Sleep(backoff)
 	}
-	fmt.Errorf("failed to send metrics after retries: %w", err)
-	return
-
+	fmt.Printf("failed to send metrics after retries: %v", err)
 }
 
 func (a *Agent) Run() {
