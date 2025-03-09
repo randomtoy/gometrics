@@ -137,13 +137,19 @@ func (a *Agent) sendMetricsBatch(metrics []Metric) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Printf("failed to send metric: %v\n", err)
-		return
-	}
+	for attempt := 1; attempt <= 4; attempt++ {
+		resp, err := http.DefaultClient.Do(req)
+		if err == nil {
+			resp.Body.Close()
+			return
+		}
+		backoff := time.Duration((attempt-1)*2+1) * time.Second
 
-	resp.Body.Close()
+		fmt.Printf("Can't send metrics %v due to error: %v", backoff, err)
+		time.Sleep(backoff)
+	}
+	fmt.Errorf("failed to send metrics after retries: %w", err)
+	return
 
 }
 
