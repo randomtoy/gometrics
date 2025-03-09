@@ -182,7 +182,7 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	}
 	m, err := h.store.GetMetric(metric.ID)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, echo.Map{"error": "Metric not found"})
+		return c.JSON(http.StatusNotFound, echo.Map{"error": fmt.Sprintf("%v", err)})
 	}
 
 	return c.JSON(http.StatusOK, m)
