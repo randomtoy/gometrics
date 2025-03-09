@@ -200,3 +200,18 @@ func (h *Handler) PingDBHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"info": "DB is OK"})
 
 }
+
+func (h *Handler) BatchHandler(c echo.Context) error {
+
+	var metrics []model.Metric
+
+	err := c.Bind(&metrics)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err})
+	}
+	err = h.store.UpdateMetricBatch(metrics)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": fmt.Sprintf("%v", err)})
+	}
+	return c.JSON(http.StatusOK, metrics)
+}

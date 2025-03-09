@@ -43,12 +43,8 @@ type Metric struct {
 	Value *float64
 }
 
-type Metrics struct {
-	Value []Metric
-}
-
-func convertToMetrics(data map[string]interface{}) Metrics {
-	var metrics Metrics
+func convertToMetrics(data map[string]interface{}) []Metric {
+	var metrics []Metric
 	for key, value := range data {
 		metric := Metric{
 			ID: key,
@@ -62,7 +58,7 @@ func convertToMetrics(data map[string]interface{}) Metrics {
 			metric.Type = Counter
 			metric.Delta = &v
 		}
-		metrics.Value = append(metrics.Value, metric)
+		metrics = append(metrics, metric)
 	}
 	return metrics
 }
@@ -76,7 +72,7 @@ func NewAgent(serverAddr string, pollInterval, reportInterval time.Duration) *Ag
 	}
 }
 
-func (a *Agent) collectMetrics() Metrics {
+func (a *Agent) collectMetrics() []Metric {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
@@ -117,39 +113,37 @@ func (a *Agent) collectMetrics() Metrics {
 	return metrics
 }
 
-func (a *Agent) sendMetrics(metrics Metrics) {
-	for _, metric := range metrics.Value {
-		jsonData, err := json.Marshal(metric)
-		if err != nil {
-			continue
-		}
-		var buf bytes.Buffer
-		gzipWriter := gzip.NewWriter(&buf)
-		_, err = gzipWriter.Write(jsonData)
-		if err != nil {
-			fmt.Printf("failed to compress data: %v", err)
-			continue
-		}
-		gzipWriter.Close()
-
-		url := fmt.Sprintf("%s/update/", a.serverAddr)
-		req, err := http.NewRequest(http.MethodPost, url, &buf)
-		if err != nil {
-			log.Errorf("Can't wrap Request: %v", err)
-			continue
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Content-Encoding", "gzip")
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			fmt.Printf("failed to send metric: %v\n", err)
-			continue
-		}
-
-		resp.Body.Close()
-
+func (a *Agent) sendMetricsBatch(metrics []Metric) {
+	jsonData, err := json.Marshal(metrics)
+	if err != nil {
+		return
 	}
+	fmt.Printf("%#v", jsonData)
+	var buf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buf)
+	_, err = gzipWriter.Write(jsonData)
+	if err != nil {
+		fmt.Printf("failed to compress data: %v", err)
+		return
+	}
+	gzipWriter.Close()
+
+	url := fmt.Sprintf("%s/updates/", a.serverAddr)
+	req, err := http.NewRequest(http.MethodPost, url, &buf)
+	if err != nil {
+		log.Errorf("Can't wrap Request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("failed to send metric: %v\n", err)
+		return
+	}
+
+	resp.Body.Close()
 
 }
 
@@ -158,13 +152,13 @@ func (a *Agent) Run() {
 	reportTicker := time.NewTicker(a.reportInterval)
 	defer pollTicker.Stop()
 	defer reportTicker.Stop()
-	var metrics Metrics
+	var metrics []Metric
 	for {
 		select {
 		case <-pollTicker.C:
 			metrics = a.collectMetrics()
 		case <-reportTicker.C:
-			a.sendMetrics(metrics)
+			a.sendMetricsBatch(metrics)
 		}
 
 	}

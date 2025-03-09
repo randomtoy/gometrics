@@ -44,6 +44,7 @@ func (s *Server) Run(addr string) error {
 	e.GET("/value/*", s.handler.HandleMetrics)
 	e.POST("/update/", s.handler.UpdateMetricJSON)
 	e.POST("/update/*", s.handler.HandleUpdate)
+	e.POST("/updates/", s.handler.BatchHandler)
 
 	e.Any("/*", func(c echo.Context) error {
 		return c.String(http.StatusNotFound, "Page not found")

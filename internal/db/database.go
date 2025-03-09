@@ -39,9 +39,7 @@ func (db DBStorage) InitDB() error {
 
 func (db DBStorage) UpdateMetric(metric model.Metric) (model.Metric, error) {
 	if metric.Type == model.Counter {
-		fmt.Println("Updating Counter Type")
 		m, err := db.GetMetric(metric.ID)
-		fmt.Printf("value: %#v, error: %#v", m, err)
 		if err == nil {
 			metric.Summ(m.Delta)
 		}
@@ -113,4 +111,40 @@ func (db DBStorage) Close() {
 
 func (db DBStorage) Ping(ctx context.Context) error {
 	return db.DB.PingContext(ctx)
+}
+
+func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
+	tx, err := db.DB.Begin()
+
+	if err != nil {
+		return fmt.Errorf("can't begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+	INSERT INTO metrics (id, type, value, delta) 
+	VALUES ($1, $2, $3, $4) 
+	ON CONFLICT (id) DO UPDATE 
+	SET value = EXCLUDED.value, delta = EXCLUDED.delta
+	`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("can't prepare query: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, metric := range metrics {
+		if metric.Type == model.Counter {
+			m, err := db.GetMetric(metric.ID)
+			if err == nil {
+				metric.Summ(m.Delta)
+			}
+		}
+		_, err := stmt.Exec(metric.ID, metric.Type, metric.Value, metric.Delta)
+		if err != nil {
+			return fmt.Errorf("can't write metric to DB: %w", err)
+		}
+	}
+	return tx.Commit()
 }

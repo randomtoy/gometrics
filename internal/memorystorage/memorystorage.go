@@ -96,3 +96,16 @@ func (s *InMemoryStorage) Close() {
 func (s *InMemoryStorage) Ping(ctx context.Context) error {
 	return nil
 }
+
+func (s *InMemoryStorage) UpdateMetricBatch(metrics []model.Metric) error {
+	for _, metric := range metrics {
+		if metric.Type == model.Counter {
+			existing, found := s.metrics[metric.ID]
+			if found {
+				metric.Summ(existing.Delta)
+			}
+		}
+		s.metrics[metric.ID] = metric
+	}
+	return nil
+}

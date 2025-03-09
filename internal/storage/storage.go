@@ -13,8 +13,10 @@ import (
 
 type Storage interface {
 	UpdateMetric(metric model.Metric) (model.Metric, error)
+	UpdateMetricBatch(metrics []model.Metric) error
 	GetAllMetrics() (map[string]model.Metric, error)
 	GetMetric(metric string) (model.Metric, error)
+
 	Close()
 	Ping(ctx context.Context) error
 }
