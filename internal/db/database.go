@@ -114,6 +114,18 @@ func (db DBStorage) Ping(ctx context.Context) error {
 }
 
 func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
+
+	groupedMetrics := make(map[string]model.Metric)
+	for _, metric := range metrics {
+		existing, found := groupedMetrics[metric.ID]
+		if found {
+			if metric.Type == model.Counter {
+				metric.Summ(existing.Delta)
+			}
+		}
+		groupedMetrics[metric.ID] = metric
+	}
+
 	tx, err := db.DB.Begin()
 
 	if err != nil {
@@ -134,13 +146,7 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 	}
 	defer stmt.Close()
 
-	for _, metric := range metrics {
-		if metric.Type == model.Counter {
-			m, err := db.GetMetric(metric.ID)
-			if err == nil {
-				metric.Summ(m.Delta)
-			}
-		}
+	for _, metric := range groupedMetrics {
 		_, err := stmt.Exec(metric.ID, metric.Type, metric.Value, metric.Delta)
 		if err != nil {
 			return fmt.Errorf("can't write metric to DB: %w", err)
