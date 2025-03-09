@@ -147,7 +147,7 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 		}
 		lastErr = err
 		if !isRetriableError(err) {
-			fmt.Errorf("fatal DB error: %w", err)
+			return fmt.Errorf("fatal DB error: %w", err)
 		}
 
 		backoff := time.Duration((attempt-1)*2+1) * time.Second
