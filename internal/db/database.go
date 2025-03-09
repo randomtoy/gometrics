@@ -3,14 +3,28 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/randomtoy/gometrics/internal/model"
 )
 
 type DBStorage struct {
 	DB *sql.DB
+}
+
+func isRetriableError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == pgerrcode.ConnectionException ||
+			pgErr.Code == pgerrcode.ConnectionDoesNotExist ||
+			pgErr.Code == pgerrcode.ConnectionFailure
+	}
+	return false
 }
 
 func NewDBConnector(dsn string) (*DBStorage, error) {
@@ -125,7 +139,26 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 		}
 		groupedMetrics[metric.ID] = metric
 	}
+	var lastErr error
+	for attempt := 1; attempt <= 4; attempt++ {
+		err := db.insertBatch(groupedMetrics)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if !isRetriableError(err) {
+			fmt.Errorf("fatal DB error: %w", err)
+		}
 
+		backoff := time.Duration((attempt-1)*2+1) * time.Second
+
+		fmt.Printf("Retrying DB insert in %v due to error: %v", backoff, err)
+		time.Sleep(backoff)
+	}
+	return fmt.Errorf("failed to insert metrics after retries: %w", lastErr)
+}
+
+func (db *DBStorage) insertBatch(gMetrics map[string]model.Metric) error {
 	tx, err := db.DB.Begin()
 
 	if err != nil {
@@ -146,7 +179,7 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 	}
 	defer stmt.Close()
 
-	for _, metric := range groupedMetrics {
+	for _, metric := range gMetrics {
 		if metric.Type == model.Counter {
 			m, err := db.GetMetric(metric.ID)
 			if err == nil {
