@@ -147,6 +147,12 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 	defer stmt.Close()
 
 	for _, metric := range groupedMetrics {
+		if metric.Type == model.Counter {
+			m, err := db.GetMetric(metric.ID)
+			if err == nil {
+				metric.Summ(m.Delta)
+			}
+		}
 		_, err := stmt.Exec(metric.ID, metric.Type, metric.Value, metric.Delta)
 		if err != nil {
 			return fmt.Errorf("can't write metric to DB: %w", err)
