@@ -13,7 +13,7 @@ POST http://localhost:8080/value/
 Content-Type: application/json
 
 
-{"id":"PollCount14"}
+{"id":"PollCount16"}
 
 GET http://localhost:8080/ping
 
@@ -25,7 +25,7 @@ POST http://localhost:8080/updates/
 Content-Type: application/json
 
 [{
-    "id": "PollCount14",
+    "id": "PollCount19",
     "type": "counter",
     "delta": 10
   },
@@ -33,5 +33,10 @@ Content-Type: application/json
     "id": "PollCount12",
     "type": "gauge",
     "value": 15
+  },
+{
+    "id": "PollCount19",
+    "type": "counter",
+    "delta": 10
   }
 ]

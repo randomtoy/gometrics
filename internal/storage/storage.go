@@ -22,8 +22,8 @@ type Storage interface {
 }
 
 func NewStorage(l *zap.Logger, config model.Config) (Storage, error) {
-	if config.DatabaseDSN != "" {
-		dbconn, err := db.NewDBConnector(config.DatabaseDSN)
+	if config.Server.DatabaseDSN != "" {
+		dbconn, err := db.NewDBConnector(config.Server.DatabaseDSN)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create db connector: %w", err)
 		}
@@ -35,21 +35,21 @@ func NewStorage(l *zap.Logger, config model.Config) (Storage, error) {
 		return dbconn, nil
 	}
 	l.Info("Using in-memory storage")
-	store := memorystorage.NewInMemoryStorage(l, config.FilePath)
+	store := memorystorage.NewInMemoryStorage(l, config.Server.FilePath)
 
-	if config.Restore {
-		err := store.LoadFromFile(config.FilePath)
+	if config.Server.Restore {
+		err := store.LoadFromFile(config.Server.FilePath)
 		if err != nil {
 			l.Fatal("restoring error: %v", zap.Error(err))
 		}
 		l.Info("restore success")
 
 	}
-	if config.FilePath != "" {
-		ticker := time.NewTicker(time.Duration(config.StoreInterval) * time.Second)
+	if config.Server.FilePath != "" {
+		ticker := time.NewTicker(time.Duration(config.Server.StoreInterval) * time.Second)
 		go func() {
 			for range ticker.C {
-				err := store.SaveToFile(config.FilePath)
+				err := store.SaveToFile(config.Server.FilePath)
 				if err != nil {
 					l.Sugar().Infof("error saving metrics: %v", err)
 				}
