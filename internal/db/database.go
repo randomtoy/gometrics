@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 	"github.com/randomtoy/gometrics/internal/model"
 )
 
@@ -39,16 +40,15 @@ func NewDBConnector(dsn string) (*DBStorage, error) {
 }
 
 func (db DBStorage) InitDB() error {
-	query := `
-		CREATE TABLE IF NOT EXISTS metrics (
-			id TEXT PRIMARY KEY,
-			type TEXT NOT NULL CHECK (type IN ('gauge', 'counter')),
-			value DOUBLE PRECISION NULL,
-			delta BIGINT NULL
-		);
-	`
-	_, err := db.DB.Exec(query)
-	return err
+	err := goose.SetDialect("postgres")
+	if err != nil {
+		return fmt.Errorf("cat initialise goose dialect: %w", err)
+	}
+	err = goose.Up(db.DB, "internal/migrations")
+	if err != nil {
+		return fmt.Errorf("can't apply migrations")
+	}
+	return nil
 }
 
 func (db DBStorage) UpdateMetric(metric model.Metric) (model.Metric, error) {
