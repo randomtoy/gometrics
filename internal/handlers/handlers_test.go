@@ -17,7 +17,9 @@ import (
 func TestHandlers_HandleUpdate(t *testing.T) {
 	l := zap.NewNop()
 	config := model.Config{
-		Restore: false,
+		Server: model.ServerConfig{
+			Restore: false,
+		},
 	}
 	e := echo.New()
 	store, err := storage.NewStorage(l, config)
@@ -102,7 +104,9 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 func TestHandler_HandleAllMetrics(t *testing.T) {
 	l := zap.NewNop()
 	config := model.Config{
-		Restore: false,
+		Server: model.ServerConfig{
+			Restore: false,
+		},
 	}
 	e := echo.New()
 	store, err := storage.NewStorage(l, config)
@@ -139,7 +143,9 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 func TestHandler_HandleGetMetric(t *testing.T) {
 	l := zap.NewNop()
 	config := model.Config{
-		Restore: false,
+		Server: model.ServerConfig{
+			Restore: false,
+		},
 	}
 	e := echo.New()
 	store, err := storage.NewStorage(l, config)
