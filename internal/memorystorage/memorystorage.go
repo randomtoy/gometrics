@@ -2,9 +2,7 @@ package memorystorage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/randomtoy/gometrics/internal/model"
@@ -12,86 +10,47 @@ import (
 )
 
 type InMemoryStorage struct {
-	mutex    sync.Mutex
-	metrics  map[string]model.Metric
-	filepath string
-	log      *zap.Logger
+	Mutex   sync.Mutex
+	Metrics map[string]model.Metric
+	log     *zap.SugaredLogger
 }
 
-func NewInMemoryStorage(l *zap.Logger, path string) *InMemoryStorage {
+func NewInMemoryStorage(l *zap.SugaredLogger, path string) *InMemoryStorage {
 	return &InMemoryStorage{
-		metrics:  make(map[string]model.Metric),
-		filepath: path,
-		log:      l,
+		Metrics: make(map[string]model.Metric),
+		log:     l,
 	}
 }
 
 func (s *InMemoryStorage) UpdateMetric(ctx context.Context, metric model.Metric) (model.Metric, error) {
 	if metric.Type == model.Counter {
-		existing, found := s.metrics[metric.ID]
+		existing, found := s.Metrics[metric.ID]
 		if found {
 			metric.Summ(existing.Delta)
 		}
 	}
-	s.metrics[metric.ID] = metric
-	return s.metrics[metric.ID], nil
+	s.Metrics[metric.ID] = metric
+	return s.Metrics[metric.ID], nil
 }
 
 func (s *InMemoryStorage) GetMetric(ctx context.Context, metric string) (model.Metric, error) {
 
-	m, ok := s.metrics[metric]
+	m, ok := s.Metrics[metric]
 	if !ok {
 		return model.Metric{}, fmt.Errorf("can't find metric: %s", metric)
 	}
 	return m, nil
 }
 
-func (s *InMemoryStorage) SaveToFile(filepath string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	file, err := os.Create(filepath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(s.metrics)
-
-}
-
-func (s *InMemoryStorage) LoadFromFile(filepath string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	file, err := os.Open(filepath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("error while opening file: %w", err)
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	return decoder.Decode(&s.metrics)
-}
-
 func (s *InMemoryStorage) GetAllMetrics(ctx context.Context) (map[string]model.Metric, error) {
-	result := make(map[string]model.Metric, len(s.metrics))
-	for k, v := range s.metrics {
+	result := make(map[string]model.Metric, len(s.Metrics))
+	for k, v := range s.Metrics {
 		result[k] = v
 	}
 	return result, nil
 }
 
-func (s *InMemoryStorage) Close() {
-	err := s.SaveToFile(s.filepath)
-	if err != nil {
-		s.log.Sugar().Infof("error saving metrics: %v", err)
-	}
-}
+func (s *InMemoryStorage) Close() {}
 
 func (s *InMemoryStorage) Ping(ctx context.Context) error {
 	return nil
@@ -100,12 +59,12 @@ func (s *InMemoryStorage) Ping(ctx context.Context) error {
 func (s *InMemoryStorage) UpdateMetricBatch(ctx context.Context, metrics []model.Metric) error {
 	for _, metric := range metrics {
 		if metric.Type == model.Counter {
-			existing, found := s.metrics[metric.ID]
+			existing, found := s.Metrics[metric.ID]
 			if found {
 				metric.Summ(existing.Delta)
 			}
 		}
-		s.metrics[metric.ID] = metric
+		s.Metrics[metric.ID] = metric
 	}
 	return nil
 }

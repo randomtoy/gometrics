@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/randomtoy/gometrics/internal/db"
+	"github.com/randomtoy/gometrics/internal/filestorage"
 	"github.com/randomtoy/gometrics/internal/memorystorage"
 	"github.com/randomtoy/gometrics/internal/model"
 	"go.uber.org/zap"
@@ -34,28 +35,31 @@ func NewStorage(l *zap.Logger, config model.Config) (Storage, error) {
 		l.Info("using PostgreSQL as default storage")
 		return dbconn, nil
 	}
-	l.Info("Using in-memory storage")
-	store := memorystorage.NewInMemoryStorage(l, config.Server.FilePath)
 
-	if config.Server.Restore {
-		err := store.LoadFromFile(config.Server.FilePath)
-		if err != nil {
-			l.Fatal("restoring error: %v", zap.Error(err))
-		}
-		l.Info("restore success")
+	memstorage := memorystorage.NewInMemoryStorage(l.Sugar(), config.Server.FilePath)
 
-	}
 	if config.Server.FilePath != "" {
+		store := filestorage.NewFileStorage(l.Sugar(), memstorage, config.Server.FilePath)
+		if config.Server.Restore {
+			err := store.LoadFromFile()
+			if err != nil {
+				l.Fatal("restoring error: %v", zap.Error(err))
+			}
+			l.Info("restore success")
+
+		}
 		ticker := time.NewTicker(time.Duration(config.Server.StoreInterval) * time.Second)
 		go func() {
 			for range ticker.C {
-				err := store.SaveToFile(config.Server.FilePath)
+				err := store.SaveToFile()
 				if err != nil {
 					l.Sugar().Infof("error saving metrics: %v", err)
 				}
 			}
 		}()
+		l.Info("Using memorystorage")
+		return store, nil
 	}
-
-	return store, nil
+	l.Info("Using memorystorage")
+	return memstorage, nil
 }

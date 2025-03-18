@@ -11,7 +11,7 @@ import (
 
 func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 	ctx := context.Background()
-	l := zap.NewNop()
+	l := zap.NewNop().Sugar()
 	store := NewInMemoryStorage(l, "")
 
 	counterValue := int64(10)
@@ -49,7 +49,7 @@ func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 
 func TestInMemoryStorage_GetMetric(t *testing.T) {
 	ctx := context.Background()
-	l := zap.NewNop()
+	l := zap.NewNop().Sugar()
 	store := NewInMemoryStorage(l, "")
 
 	counterValue := int64(10)
