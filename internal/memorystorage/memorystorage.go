@@ -26,7 +26,7 @@ func NewInMemoryStorage(l *zap.Logger, path string) *InMemoryStorage {
 	}
 }
 
-func (s *InMemoryStorage) UpdateMetric(metric model.Metric) (model.Metric, error) {
+func (s *InMemoryStorage) UpdateMetric(ctx context.Context, metric model.Metric) (model.Metric, error) {
 	if metric.Type == model.Counter {
 		existing, found := s.metrics[metric.ID]
 		if found {
@@ -37,7 +37,7 @@ func (s *InMemoryStorage) UpdateMetric(metric model.Metric) (model.Metric, error
 	return s.metrics[metric.ID], nil
 }
 
-func (s *InMemoryStorage) GetMetric(metric string) (model.Metric, error) {
+func (s *InMemoryStorage) GetMetric(ctx context.Context, metric string) (model.Metric, error) {
 
 	m, ok := s.metrics[metric]
 	if !ok {
@@ -78,7 +78,7 @@ func (s *InMemoryStorage) LoadFromFile(filepath string) error {
 	return decoder.Decode(&s.metrics)
 }
 
-func (s *InMemoryStorage) GetAllMetrics() (map[string]model.Metric, error) {
+func (s *InMemoryStorage) GetAllMetrics(ctx context.Context) (map[string]model.Metric, error) {
 	result := make(map[string]model.Metric, len(s.metrics))
 	for k, v := range s.metrics {
 		result[k] = v
@@ -97,7 +97,7 @@ func (s *InMemoryStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (s *InMemoryStorage) UpdateMetricBatch(metrics []model.Metric) error {
+func (s *InMemoryStorage) UpdateMetricBatch(ctx context.Context, metrics []model.Metric) error {
 	for _, metric := range metrics {
 		if metric.Type == model.Counter {
 			existing, found := s.metrics[metric.ID]

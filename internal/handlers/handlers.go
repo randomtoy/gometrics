@@ -1,12 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -54,7 +52,7 @@ func WithLogger(l *zap.Logger) Option {
 }
 
 func (h *Handler) HandleUpdate(c echo.Context) error {
-
+	ctx := c.Request().Context()
 	path := trimPath(c.Request().URL.Path)
 
 	// Not sure that is reasonable check, because echo shouldnt routing
@@ -83,14 +81,14 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		metric.Value = &value
-		_, _ = h.store.UpdateMetric(metric)
+		_, _ = h.store.UpdateMetric(ctx, metric)
 	case model.Counter:
 		value, err := strconv.ParseInt(path.metricValue, 10, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		metric.Delta = &value
-		_, _ = h.store.UpdateMetric(metric)
+		_, _ = h.store.UpdateMetric(ctx, metric)
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid metric type: %s", path.metricType))
 	}
@@ -119,7 +117,8 @@ func getElement(parts []string, index int) string {
 }
 
 func (h *Handler) HandleAllMetrics(c echo.Context) error {
-	metrics, _ := h.store.GetAllMetrics()
+	ctx := c.Request().Context()
+	metrics, _ := h.store.GetAllMetrics(ctx)
 
 	var result []string
 	for _, metric := range metrics {
@@ -131,6 +130,7 @@ func (h *Handler) HandleAllMetrics(c echo.Context) error {
 }
 
 func (h *Handler) HandleMetrics(c echo.Context) error {
+	ctx := c.Request().Context()
 	path := trimPath(c.Request().URL.Path)
 
 	if path.action != string(ActionValue) {
@@ -143,7 +143,7 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	if path.metricType != "gauge" && path.metricType != "counter" {
 		return c.String(http.StatusBadRequest, fmt.Sprintf("invalid metric type: %v", path.metricType))
 	}
-	metric, err := h.store.GetMetric(path.metricName)
+	metric, err := h.store.GetMetric(ctx, path.metricName)
 	if err != nil {
 		return c.String(http.StatusNotFound, fmt.Sprintf("Cant find metric: %s", err))
 	}
@@ -152,6 +152,7 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 }
 
 func (h *Handler) UpdateMetricJSON(c echo.Context) error {
+	ctx := c.Request().Context()
 	var metric model.Metric
 	err := c.Bind(&metric)
 	if err != nil {
@@ -166,11 +167,12 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Empty Value"})
 	}
 
-	m, _ := h.store.UpdateMetric(metric)
+	m, _ := h.store.UpdateMetric(ctx, metric)
 	return c.JSON(http.StatusOK, echo.Map{"info": m})
 }
 
 func (h *Handler) GetMetricJSON(c echo.Context) error {
+	ctx := c.Request().Context()
 	var metric model.Metric
 	err := c.Bind(&metric)
 	if err != nil {
@@ -180,7 +182,7 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
 	}
-	m, err := h.store.GetMetric(metric.ID)
+	m, err := h.store.GetMetric(ctx, metric.ID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, echo.Map{"error": fmt.Sprintf("%v", err)})
 	}
@@ -190,8 +192,7 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 }
 
 func (h *Handler) PingDBHandler(c echo.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	ctx := c.Request().Context()
 
 	err := h.store.Ping(ctx)
 	if err != nil {
@@ -202,14 +203,14 @@ func (h *Handler) PingDBHandler(c echo.Context) error {
 }
 
 func (h *Handler) BatchHandler(c echo.Context) error {
-
+	ctx := c.Request().Context()
 	var metrics []model.Metric
 
 	err := c.Bind(&metrics)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": err})
 	}
-	err = h.store.UpdateMetricBatch(metrics)
+	err = h.store.UpdateMetricBatch(ctx, metrics)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": fmt.Sprintf("%v", err)})
 	}

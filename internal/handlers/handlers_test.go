@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 )
 
 func TestHandlers_HandleUpdate(t *testing.T) {
+
 	l := zap.NewNop()
 	config := model.Config{
 		Server: model.ServerConfig{
@@ -48,7 +50,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		am, err := store.GetAllMetrics()
+		am, err := store.GetAllMetrics(ctx.Request().Context())
 		assert.NoError(t, err)
 		assert.Contains(t, am, gaugeMetric.ID)
 		assert.Equal(t, &gaugeValue, am[gaugeMetric.ID].Value)
@@ -62,7 +64,7 @@ func TestHandlers_HandleUpdate(t *testing.T) {
 		handler.HandleUpdate(ctx)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		am, err := store.GetAllMetrics()
+		am, err := store.GetAllMetrics(ctx.Request().Context())
 		assert.NoError(t, err)
 		assert.Contains(t, am, counterMetric.ID)
 		fmt.Printf("%#v", am)
@@ -124,13 +126,13 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 		ID:    "TestGauge",
 		Value: &gaugeValue,
 	}
-	store.UpdateMetric(counterMetric)
-	store.UpdateMetric(gaugeMetric)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
 	ctx := e.NewContext(req, rec)
+	store.UpdateMetric(ctx.Request().Context(), counterMetric)
+	store.UpdateMetric(ctx.Request().Context(), gaugeMetric)
 	handler.HandleAllMetrics(ctx)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -141,6 +143,7 @@ func TestHandler_HandleAllMetrics(t *testing.T) {
 }
 
 func TestHandler_HandleGetMetric(t *testing.T) {
+	ctx := context.Background()
 	l := zap.NewNop()
 	config := model.Config{
 		Server: model.ServerConfig{
@@ -163,8 +166,8 @@ func TestHandler_HandleGetMetric(t *testing.T) {
 		ID:    "TestGauge",
 		Value: &gaugeValue,
 	}
-	store.UpdateMetric(counterMetric)
-	store.UpdateMetric(gaugeMetric)
+	store.UpdateMetric(ctx, counterMetric)
+	store.UpdateMetric(ctx, gaugeMetric)
 
 	t.Run("Valid gauge", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/value/gauge/TestGauge", nil)

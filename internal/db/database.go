@@ -9,13 +9,16 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	sqlc "github.com/randomtoy/gometrics/internal/db/sqlc"
 	"github.com/randomtoy/gometrics/internal/model"
 )
 
 type DBStorage struct {
-	DB *sql.DB
+	Queries *sqlc.Queries
+	DB      *sql.DB
 }
 
 func isRetriableError(err error) bool {
@@ -35,7 +38,10 @@ func NewDBConnector(dsn string) (*DBStorage, error) {
 		return nil, err
 	}
 
-	dbconn := &DBStorage{DB: db}
+	dbconn := &DBStorage{
+		Queries: sqlc.New(db),
+		DB:      db,
+	}
 	return dbconn, nil
 }
 
@@ -51,66 +57,72 @@ func (db DBStorage) InitDB() error {
 	return nil
 }
 
-func (db DBStorage) UpdateMetric(metric model.Metric) (model.Metric, error) {
+func (db DBStorage) UpdateMetric(ctx context.Context, metric model.Metric) (model.Metric, error) {
 	if metric.Type == model.Counter {
-		m, err := db.GetMetric(metric.ID)
+		m, err := db.GetMetric(ctx, metric.ID)
 		if err == nil {
 			metric.Summ(m.Delta)
 		}
 	}
-	query := `
-	INSERT INTO metrics (id, type, value, delta)
-	VALUES ($1, $2, $3, $4)
-	ON CONFLICT (id) DO UPDATE 
-	SET value = EXCLUDED.value, delta = EXCLUDED.delta;
-	`
-	_, err := db.DB.Exec(query, metric.ID, metric.Type, metric.Value, metric.Delta)
+	err := db.Queries.InsertOrUpdateMetric(ctx, sqlc.InsertOrUpdateMetricParams{
+		ID:    metric.ID,
+		Type:  string(metric.Type),
+		Value: sql.NullFloat64{Float64: metric.DerefFloat64(metric.Value), Valid: metric.Value != nil},
+		Delta: sql.NullInt64{Int64: metric.DerefInt64(metric.Delta), Valid: metric.Delta != nil},
+	})
+
+	// _, err := db.DB.Exec(query, metric.ID, metric.Type, metric.Value, metric.Delta)
 	if err != nil {
 		return model.Metric{}, fmt.Errorf("cant write metric: %w", err)
 	}
 
-	res, err := db.GetMetric(metric.ID)
+	res, err := db.GetMetric(ctx, metric.ID)
 	if err != nil {
 		return model.Metric{}, fmt.Errorf("cant get metric after writing: %w", err)
 	}
 	return res, nil
 }
 
-func (db DBStorage) GetMetric(m string) (model.Metric, error) {
-
-	query := "SELECT id, type, value, delta FROM metrics WHERE id=$1"
-	row := db.DB.QueryRow(query, m)
-
-	var metric model.Metric
-	err := row.Scan(&metric.ID, &metric.Type, &metric.Value, &metric.Delta)
+func (db DBStorage) GetMetric(ctx context.Context, id string) (model.Metric, error) {
+	m, err := db.Queries.GetMetric(ctx, id)
 	if err != nil {
-		return model.Metric{}, err
+		return model.Metric{}, fmt.Errorf("cant get metric: %w", err)
 	}
+	return model.Metric{
+		ID:    m.ID,
+		Type:  model.MetricType(m.Type),
+		Value: &m.Value.Float64,
+		Delta: &m.Delta.Int64,
+	}, nil
 
-	return metric, nil
+	// query := "SELECT id, type, value, delta FROM metrics WHERE id=$1"
+	// row := db.DB.QueryRow(query, m)
+
+	// var metric model.Metric
+	// err := row.Scan(&metric.ID, &metric.Type, &metric.Value, &metric.Delta)
+	// if err != nil {
+	// 	return model.Metric{}, err
+	// }
+
+	// return metric, nil
 
 }
 
-func (db *DBStorage) GetAllMetrics() (map[string]model.Metric, error) {
-	rows, err := db.DB.Query("SELECT id, type, value, delta FROM metrics")
+func (db *DBStorage) GetAllMetrics(ctx context.Context) (map[string]model.Metric, error) {
+	metricsList, err := db.Queries.GetAllMetrics(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cant get all metrics: %w", err)
 	}
-	defer rows.Close()
 
 	metrics := make(map[string]model.Metric)
 
-	for rows.Next() {
-		var metric model.Metric
-		err := rows.Scan(&metric.ID, &metric.Type, &metric.Value, &metric.Delta)
-		if err != nil {
-			return nil, err
+	for _, m := range metricsList {
+		metrics[m.ID] = model.Metric{
+			ID:    m.ID,
+			Type:  model.MetricType(m.Type),
+			Value: &m.Value.Float64,
+			Delta: &m.Delta.Int64,
 		}
-		metrics[metric.ID] = metric
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 
 	return metrics, nil
@@ -127,7 +139,7 @@ func (db DBStorage) Ping(ctx context.Context) error {
 	return db.DB.PingContext(ctx)
 }
 
-func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
+func (db DBStorage) UpdateMetricBatch(ctx context.Context, metrics []model.Metric) error {
 
 	groupedMetrics := make(map[string]model.Metric)
 	for _, metric := range metrics {
@@ -141,7 +153,7 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 	}
 	var lastErr error
 	for attempt := 1; attempt <= 4; attempt++ {
-		err := db.insertBatch(groupedMetrics)
+		err := db.insertBatch(ctx, groupedMetrics)
 		if err == nil {
 			return nil
 		}
@@ -158,35 +170,29 @@ func (db DBStorage) UpdateMetricBatch(metrics []model.Metric) error {
 	return fmt.Errorf("failed to insert metrics after retries: %w", lastErr)
 }
 
-func (db *DBStorage) insertBatch(gMetrics map[string]model.Metric) error {
-	tx, err := db.DB.Begin()
+func (db *DBStorage) insertBatch(ctx context.Context, gMetrics map[string]model.Metric) error {
+	tx, err := db.DB.BeginTx(ctx, nil)
 
 	if err != nil {
 		return fmt.Errorf("can't begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	query := `
-	INSERT INTO metrics (id, type, value, delta) 
-	VALUES ($1, $2, $3, $4) 
-	ON CONFLICT (id) DO UPDATE 
-	SET value = EXCLUDED.value, delta = EXCLUDED.delta
-	`
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		return fmt.Errorf("can't prepare query: %w", err)
-	}
-	defer stmt.Close()
+	query := db.Queries.WithTx(tx)
 
 	for _, metric := range gMetrics {
 		if metric.Type == model.Counter {
-			m, err := db.GetMetric(metric.ID)
+			m, err := db.GetMetric(ctx, metric.ID)
 			if err == nil {
 				metric.Summ(m.Delta)
 			}
 		}
-		_, err := stmt.Exec(metric.ID, metric.Type, metric.Value, metric.Delta)
+		err := query.InsertOrUpdateMetric(ctx, sqlc.InsertOrUpdateMetricParams{
+			ID:    metric.ID,
+			Type:  string(metric.Type),
+			Value: sql.NullFloat64{Float64: metric.DerefFloat64(metric.Value), Valid: metric.Value != nil},
+			Delta: sql.NullInt64{Int64: metric.DerefInt64(metric.Delta), Valid: metric.Delta != nil},
+		})
 		if err != nil {
 			return fmt.Errorf("can't write metric to DB: %w", err)
 		}

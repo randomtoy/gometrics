@@ -1,6 +1,7 @@
 package memorystorage
 
 import (
+	"context"
 	"testing"
 
 	"github.com/randomtoy/gometrics/internal/model"
@@ -9,6 +10,7 @@ import (
 )
 
 func TestInMemoryStorage_UpdateMetric(t *testing.T) {
+	ctx := context.Background()
 	l := zap.NewNop()
 	store := NewInMemoryStorage(l, "")
 
@@ -26,18 +28,18 @@ func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 	}
 
 	t.Run("Update gauge metric", func(t *testing.T) {
-		store.UpdateMetric(gaugeMetric)
+		store.UpdateMetric(ctx, gaugeMetric)
 
-		metrics, _ := store.GetAllMetrics()
+		metrics, _ := store.GetAllMetrics(ctx)
 		assert.Contains(t, metrics, "TestGauge")
 		assert.Equal(t, &gaugeValue, metrics["TestGauge"].Value)
 	})
 
 	t.Run("Update counter metric", func(t *testing.T) {
 
-		store.UpdateMetric(counterMetric)
+		store.UpdateMetric(ctx, counterMetric)
 
-		metric, err := store.GetMetric("TestCounter")
+		metric, err := store.GetMetric(ctx, "TestCounter")
 		assert.NoError(t, err)
 		// assert.Contains(t, metric, "TestCounter")
 		assert.Equal(t, &counterValue, metric.Delta)
@@ -46,6 +48,7 @@ func TestInMemoryStorage_UpdateMetric(t *testing.T) {
 }
 
 func TestInMemoryStorage_GetMetric(t *testing.T) {
+	ctx := context.Background()
 	l := zap.NewNop()
 	store := NewInMemoryStorage(l, "")
 
@@ -64,10 +67,10 @@ func TestInMemoryStorage_GetMetric(t *testing.T) {
 
 	t.Run("Get gauge metric", func(t *testing.T) {
 
-		store.UpdateMetric(gaugeMetric)
+		store.UpdateMetric(ctx, gaugeMetric)
 		// assert.NoError(t, err)
 
-		metric, err := store.GetMetric("TestGauge")
+		metric, err := store.GetMetric(ctx, "TestGauge")
 		assert.NoError(t, err)
 
 		assert.Equal(t, &gaugeValue, metric.Value)
@@ -75,14 +78,14 @@ func TestInMemoryStorage_GetMetric(t *testing.T) {
 
 	t.Run("Get counter metric", func(t *testing.T) {
 
-		store.UpdateMetric(counterMetric)
+		store.UpdateMetric(ctx, counterMetric)
 
-		metric, err := store.GetMetric("TestCounter")
+		metric, err := store.GetMetric(ctx, "TestCounter")
 		assert.NoError(t, err)
 		assert.Equal(t, &counterValue, metric.Delta)
 	})
 	t.Run("Get unknown metric", func(t *testing.T) {
-		_, err := store.GetMetric("UnknownName")
+		_, err := store.GetMetric(ctx, "UnknownName")
 		assert.Error(t, err)
 	})
 }
