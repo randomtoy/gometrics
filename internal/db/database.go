@@ -71,7 +71,6 @@ func (db DBStorage) UpdateMetric(ctx context.Context, metric model.Metric) (mode
 		Delta: sql.NullInt64{Int64: metric.DerefInt64(metric.Delta), Valid: metric.Delta != nil},
 	})
 
-	// _, err := db.DB.Exec(query, metric.ID, metric.Type, metric.Value, metric.Delta)
 	if err != nil {
 		return model.Metric{}, fmt.Errorf("cant write metric: %w", err)
 	}
@@ -88,24 +87,14 @@ func (db DBStorage) GetMetric(ctx context.Context, id string) (model.Metric, err
 	if err != nil {
 		return model.Metric{}, fmt.Errorf("cant get metric: %w", err)
 	}
-	return model.Metric{
-		ID:    m.ID,
-		Type:  model.MetricType(m.Type),
-		Value: &m.Value.Float64,
-		Delta: &m.Delta.Int64,
-	}, nil
+	metric := model.Metric{
+		ID:   m.ID,
+		Type: model.MetricType(m.Type),
+	}
+	metric.Value = toFloat64Ptr(m.Value)
+	metric.Delta = toInt64Ptr(m.Delta)
 
-	// query := "SELECT id, type, value, delta FROM metrics WHERE id=$1"
-	// row := db.DB.QueryRow(query, m)
-
-	// var metric model.Metric
-	// err := row.Scan(&metric.ID, &metric.Type, &metric.Value, &metric.Delta)
-	// if err != nil {
-	// 	return model.Metric{}, err
-	// }
-
-	// return metric, nil
-
+	return metric, nil
 }
 
 func (db *DBStorage) GetAllMetrics(ctx context.Context) (map[string]model.Metric, error) {
@@ -117,12 +106,13 @@ func (db *DBStorage) GetAllMetrics(ctx context.Context) (map[string]model.Metric
 	metrics := make(map[string]model.Metric)
 
 	for _, m := range metricsList {
-		metrics[m.ID] = model.Metric{
-			ID:    m.ID,
-			Type:  model.MetricType(m.Type),
-			Value: &m.Value.Float64,
-			Delta: &m.Delta.Int64,
+		metric := model.Metric{
+			ID:   m.ID,
+			Type: model.MetricType(m.Type),
 		}
+		metric.Value = toFloat64Ptr(m.Value)
+		metric.Delta = toInt64Ptr(m.Delta)
+		metrics[m.ID] = metric
 	}
 
 	return metrics, nil
