@@ -13,7 +13,7 @@ POST http://localhost:8080/value/
 Content-Type: application/json
 
 
-{"id":"PollCount16"}
+{"id":"PollCount12"}
 
 GET http://localhost:8080/ping
 
