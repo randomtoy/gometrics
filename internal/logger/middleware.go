@@ -20,7 +20,7 @@ func (w *responseWriterWithBody) Write(data []byte) (int, error) {
 	return w.ResponseWriter.Write(data)
 }
 
-func ResponseLogger(l zap.Logger) echo.MiddlewareFunc {
+func ResponseLogger(l zap.SugaredLogger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
@@ -37,7 +37,7 @@ func ResponseLogger(l zap.Logger) echo.MiddlewareFunc {
 			err := next(c)
 
 			duration := time.Since(start)
-			l.Sugar().Infoln(
+			l.Infoln(
 				"uri", request.RequestURI,
 				"method", request.Method,
 				"status", response.Status,

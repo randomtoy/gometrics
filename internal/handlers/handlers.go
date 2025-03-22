@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
+	"github.com/randomtoy/gometrics/internal/model"
 	"github.com/randomtoy/gometrics/internal/storage"
 )
 
@@ -51,7 +52,7 @@ func WithLogger(l *zap.Logger) Option {
 }
 
 func (h *Handler) HandleUpdate(c echo.Context) error {
-
+	ctx := c.Request().Context()
 	path := trimPath(c.Request().URL.Path)
 
 	// Not sure that is reasonable check, because echo shouldnt routing
@@ -69,25 +70,25 @@ func (h *Handler) HandleUpdate(c echo.Context) error {
 
 	}
 
-	var metric storage.Metric
+	var metric model.Metric
 	metric.ID = path.metricName
-	metric.Type = storage.MetricType(path.metricType)
+	metric.Type = model.MetricType(path.metricType)
 	//TODO Return metric
 	switch metric.Type {
-	case storage.Gauge:
+	case model.Gauge:
 		value, err := strconv.ParseFloat(path.metricValue, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		metric.Value = &value
-		_ = h.store.UpdateMetric(metric)
-	case storage.Counter:
+		_, _ = h.store.UpdateMetric(ctx, metric)
+	case model.Counter:
 		value, err := strconv.ParseInt(path.metricValue, 10, 64)
 		if err != nil {
 			return c.String(http.StatusBadRequest, fmt.Sprintln("Error converting metric"))
 		}
 		metric.Delta = &value
-		_ = h.store.UpdateMetric(metric)
+		_, _ = h.store.UpdateMetric(ctx, metric)
 	default:
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Invalid metric type: %s", path.metricType))
 	}
@@ -116,7 +117,8 @@ func getElement(parts []string, index int) string {
 }
 
 func (h *Handler) HandleAllMetrics(c echo.Context) error {
-	metrics := h.store.GetAllMetrics()
+	ctx := c.Request().Context()
+	metrics, _ := h.store.GetAllMetrics(ctx)
 
 	var result []string
 	for _, metric := range metrics {
@@ -128,6 +130,7 @@ func (h *Handler) HandleAllMetrics(c echo.Context) error {
 }
 
 func (h *Handler) HandleMetrics(c echo.Context) error {
+	ctx := c.Request().Context()
 	path := trimPath(c.Request().URL.Path)
 
 	if path.action != string(ActionValue) {
@@ -140,7 +143,7 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 	if path.metricType != "gauge" && path.metricType != "counter" {
 		return c.String(http.StatusBadRequest, fmt.Sprintf("invalid metric type: %v", path.metricType))
 	}
-	metric, err := h.store.GetMetric(path.metricName)
+	metric, err := h.store.GetMetric(ctx, path.metricName)
 	if err != nil {
 		return c.String(http.StatusNotFound, fmt.Sprintf("Cant find metric: %s", err))
 	}
@@ -149,7 +152,8 @@ func (h *Handler) HandleMetrics(c echo.Context) error {
 }
 
 func (h *Handler) UpdateMetricJSON(c echo.Context) error {
-	var metric storage.Metric
+	ctx := c.Request().Context()
+	var metric model.Metric
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
@@ -163,12 +167,13 @@ func (h *Handler) UpdateMetricJSON(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Empty Value"})
 	}
 
-	m := h.store.UpdateMetric(metric)
+	m, _ := h.store.UpdateMetric(ctx, metric)
 	return c.JSON(http.StatusOK, echo.Map{"info": m})
 }
 
 func (h *Handler) GetMetricJSON(c echo.Context) error {
-	var metric storage.Metric
+	ctx := c.Request().Context()
+	var metric model.Metric
 	err := c.Bind(&metric)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid JSON"})
@@ -177,11 +182,37 @@ func (h *Handler) GetMetricJSON(c echo.Context) error {
 	if metric.ID == "" {
 		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid metric name"})
 	}
-	m, err := h.store.GetMetric(metric.ID)
+	m, err := h.store.GetMetric(ctx, metric.ID)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, echo.Map{"error": "Metric not found"})
+		return c.JSON(http.StatusNotFound, echo.Map{"error": fmt.Sprintf("%v", err)})
 	}
 
 	return c.JSON(http.StatusOK, m)
 
+}
+
+func (h *Handler) PingDBHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	err := h.store.Ping(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "DB is not OK"})
+	}
+	return c.JSON(http.StatusOK, echo.Map{"info": "DB is OK"})
+
+}
+
+func (h *Handler) BatchHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	var metrics []model.Metric
+
+	err := c.Bind(&metrics)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": err})
+	}
+	err = h.store.UpdateMetricBatch(ctx, metrics)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, echo.Map{"error": fmt.Sprintf("%v", err)})
+	}
+	return c.JSON(http.StatusOK, metrics)
 }
