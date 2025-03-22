@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -17,8 +18,11 @@ func HMACSHA256Middleware(secretKey string) echo.MiddlewareFunc {
 			}
 			defer c.Request().Body.Close()
 
+			// agentKey := ""
 			receivedHash := c.Request().Header.Get("HashSHA256")
 			expectedHash := ComputeHMACSHA256(string(body), secretKey)
+			fmt.Printf("Server received: '%s'\nExpected hash: %s\nGot hash: %s\n",
+				c.Request().Body, expectedHash, receivedHash)
 
 			if receivedHash != expectedHash {
 				return c.JSON(http.StatusBadRequest, echo.Map{"error": "Хеш подписи не совпадает"})
