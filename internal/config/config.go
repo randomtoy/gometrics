@@ -25,6 +25,7 @@ func parseAgentFlags(config *model.Config) {
 	flag.StringVar(&config.Agent.Addr, "a", "localhost:8080", "server address")
 	flag.IntVar(&config.Agent.ReportInterval, "r", 10, "report interval")
 	flag.IntVar(&config.Agent.PollInterval, "p", 2, "poll interval")
+	flag.StringVar(&config.Agent.Key, "k", "", "key")
 
 	flag.Parse()
 }
@@ -50,6 +51,11 @@ func parseAgentEnvironment(config *model.Config) {
 
 	}
 
+	key, ok := os.LookupEnv("KEY")
+	if ok {
+		config.Agent.Key = key
+	}
+
 }
 
 func parseServerFlags(config *model.Config) {
@@ -58,6 +64,7 @@ func parseServerFlags(config *model.Config) {
 	flag.IntVar(&config.Server.StoreInterval, "i", 10, "Store metric niterval")
 	flag.StringVar(&config.Server.FilePath, "f", "", "file path")
 	flag.BoolVar(&config.Server.Restore, "r", true, "Restore metrics")
+	flag.StringVar(&config.Server.Key, "k", "", "Key")
 
 	flag.Parse()
 }
@@ -82,5 +89,9 @@ func parseServerEnvironment(config *model.Config) {
 	dsn, ok := os.LookupEnv("DATABASE_DSN")
 	if ok {
 		config.Server.DatabaseDSN = dsn
+	}
+	key, ok := os.LookupEnv("KEY")
+	if ok {
+		config.Server.Key = key
 	}
 }

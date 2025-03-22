@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/randomtoy/gometrics/internal/crypto"
 	"github.com/randomtoy/gometrics/internal/model"
 	"go.uber.org/zap"
 )
@@ -124,6 +125,10 @@ func (a *Agent) sendMetricsBatch(metrics []model.Metric) {
 	if err != nil {
 		a.log.Errorf("Can't wrap Request: %v", err)
 		return
+	}
+	if a.config.Key != "" {
+		hash := crypto.ComputeHMACSHA256(string(jsonData), a.config.Key)
+		req.Header.Set("HashSHA256", hash)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")

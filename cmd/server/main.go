@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/randomtoy/gometrics/internal/config"
 	"github.com/randomtoy/gometrics/internal/handlers"
 	"github.com/randomtoy/gometrics/internal/server"
@@ -31,7 +33,13 @@ func main() {
 
 	handler := handlers.NewHandler(store, handlers.WithLogger(l))
 
-	srv := server.NewServer(l.Sugar(), handler)
+	opts := []server.Option{}
+
+	if conf.Server.Key != "" {
+		fmt.Println("use hmac option")
+		opts = append(opts, server.WithHMAC(conf.Server.Key))
+	}
+	srv := server.NewServer(l.Sugar(), handler, opts...)
 
 	err = srv.Run(conf.Server.Addr)
 	if err != nil {
