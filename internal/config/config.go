@@ -26,6 +26,7 @@ func parseAgentFlags(config *model.Config) {
 	flag.IntVar(&config.Agent.ReportInterval, "r", 10, "report interval")
 	flag.IntVar(&config.Agent.PollInterval, "p", 2, "poll interval")
 	flag.StringVar(&config.Agent.Key, "k", "", "key")
+	flag.IntVar(&config.Agent.RateLimit, "l", 10, "rate limit")
 
 	flag.Parse()
 }
@@ -54,6 +55,13 @@ func parseAgentEnvironment(config *model.Config) {
 	key, ok := os.LookupEnv("KEY")
 	if ok {
 		config.Agent.Key = key
+	}
+	rate, ok := os.LookupEnv("RATE_LIMIT")
+	if ok {
+		rateLimit, err := strconv.Atoi(rate)
+		if err == nil {
+			config.Agent.RateLimit = rateLimit
+		}
 	}
 
 }

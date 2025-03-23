@@ -1,5 +1,5 @@
 GET http://localhost:8080/
-HashSHA256: "1"
+
 
 
 POST http://localhost:8080/update/
@@ -12,7 +12,7 @@ Content-Type: application/json
 
 POST http://localhost:8080/value/
 Content-Type: application/json
-
+HashSHA256: 0b81effaaf74a83a34b2c0e31ee8f7612002ab9f2579530a04ea7318cbaf1109
 
 {"id":"PollCount12"}
 
