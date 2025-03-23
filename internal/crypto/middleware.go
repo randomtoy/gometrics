@@ -20,12 +20,13 @@ func HMACSHA256Middleware(secretKey string) echo.MiddlewareFunc {
 				return c.JSON(http.StatusInternalServerError, echo.Map{"error": "Ошибка чтения тела запроса"})
 			}
 			defer c.Request().Body.Close()
+			if c.Request().Header.Get("HashSHA256") != "" {
+				receivedHash := c.Request().Header.Get("HashSHA256")
+				expectedHash := ComputeHMACSHA256(string(body), secretKey)
 
-			receivedHash := c.Request().Header.Get("HashSHA256")
-			expectedHash := ComputeHMACSHA256(string(body), secretKey)
-
-			if receivedHash != expectedHash {
-				return c.JSON(http.StatusBadRequest, echo.Map{"error": "Хеш подписи не совпадает"})
+				if receivedHash != expectedHash {
+					return c.JSON(http.StatusBadRequest, echo.Map{"error": "Хеш подписи не совпадает"})
+				}
 			}
 
 			c.Request().Body = io.NopCloser(bytes.NewReader(body))
