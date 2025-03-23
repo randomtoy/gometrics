@@ -1,4 +1,5 @@
 GET http://localhost:8080/
+HashSHA256: "1"
 
 
 POST http://localhost:8080/update/

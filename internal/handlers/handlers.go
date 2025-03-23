@@ -23,6 +23,7 @@ const (
 type Handler struct {
 	store storage.Storage
 	log   *zap.Logger
+	key   string
 }
 
 type pathParts struct {
